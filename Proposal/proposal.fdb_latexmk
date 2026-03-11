@@ -1,6 +1,6 @@
 # Fdb version 4
-["pdflatex"] 1773258187.23986 "/home/armin/Repos/FH Technikum Repos/Natural_Language_Processing/Proposal/proposal.tex" "proposal.pdf" "proposal" 1773258187.73141 0
-  "/home/armin/Repos/FH Technikum Repos/Natural_Language_Processing/Proposal/proposal.tex" 1773258186.53163 9341 33546ad12fca77082d78b8de4f85b0d5 ""
+["pdflatex"] 1773258513.72217 "/home/armin/Repos/FH Technikum Repos/Natural_Language_Processing/Proposal/proposal.tex" "proposal.pdf" "proposal" 1773258514.20855 0
+  "/home/armin/Repos/FH Technikum Repos/Natural_Language_Processing/Proposal/proposal.tex" 1773258513.01595 8333 1d4c219ddcc17ca7b11b8e2fac68502a ""
   "/usr/share/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc" 1767555874 2971 def0b6c1f0b107b3b936def894055589 ""
   "/usr/share/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc" 1767555874 2900 1537cc8184ad1792082cd229ecc269f4 ""
   "/usr/share/texmf-dist/fonts/tfm/jknappen/ec/ecbx1095.tfm" 1767555874 3584 21b378cca2e40816b0e6d74a4dc98f04 ""
@@ -78,9 +78,9 @@
   "/usr/share/texmf-dist/web2c/texmf.cnf" 1767555874 42087 b0f9697c952c8f5a8eede4134282cb0d ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1768368689 5306604 df2447a3a3aadc3acfc686cd8dc19dd6 ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1768368679 2492050 170a9456920b10ae6ccdd21310ef069a ""
-  "proposal.aux" 1773258187.66934 162 59504cb8f8bee0a3f0488d753cb23a1e "pdflatex"
-  "proposal.out" 1773258187.55831 0 d41d8cd98f00b204e9800998ecf8427e "pdflatex"
-  "proposal.tex" 1773258186.53163 9341 33546ad12fca77082d78b8de4f85b0d5 ""
+  "proposal.aux" 1773258514.14429 162 59504cb8f8bee0a3f0488d753cb23a1e "pdflatex"
+  "proposal.out" 1773258514.0343 0 d41d8cd98f00b204e9800998ecf8427e "pdflatex"
+  "proposal.tex" 1773258513.01595 8333 1d4c219ddcc17ca7b11b8e2fac68502a ""
   (generated)
   "proposal.aux"
   "proposal.log"

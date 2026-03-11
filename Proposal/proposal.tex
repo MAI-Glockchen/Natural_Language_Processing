@@ -30,7 +30,7 @@
 
 \section*{1. Motivation and Idea}
 
-Wikipedia articles are usually written as concise, neutral, and well-structured summaries of knowledge that is grounded in external sources. In practice, the references of a Wikipedia article often point to books, news articles, reports, scientific papers, or official websites that support individual claims in the text. This project asks an the question: \emph{Can we reconstruct a plausible Wikipedia-style article if we are only given the cited source material, but not the original article itself?}
+Wikipedia articles are usually written as concise, neutral, and well-structured summaries of knowledge that is grounded in external sources. In practice, the references of a Wikipedia article often point to books, news articles, reports, scientific papers, or official websites that support individual claims in the text. This project asks the question: \emph{Can we reconstruct a plausible Wikipedia-style article if we are only given the cited source material, but not the original article itself?}
 
 \section*{2. Project Goal}
 
@@ -46,7 +46,7 @@ The main goal is to design and evaluate a system that receives the original refe
 
 The output does not need to reproduce the original article word-for-word. Instead, the target is to generate a plausible article that a reader could recognize as a Wikipedia-like entry on the same topic.
 
-A secondary goal is to study which parts of this task are easy or hard. For example, can the topic itself be inferred robustly from citations? Can article sections be predicted from source distributions? Which facts are stated by many sources and which depend on only one citation? These questions turn the project from a pure generation task into a broader analysis of source-grounded encyclopedic writing.
+A secondary goal is to study which parts of this task are easy or hard. For example, can the topic itself be inferred robustly from citations? Can article sections be predicted from source distributions? Which facts are stated by many sources and which depend on only one citation?
 
 \section*{3. Research Questions}
 
@@ -59,8 +59,6 @@ The project can be organized around the following research questions:
     \item How factually grounded is the generated article, and how often does the system introduce unsupported claims or hallucinations?
     \item Which article types are easier to reconstruct, for example biographies, historical events, organizations, or technical topics?
 \end{enumerate}
-
-These questions are concrete enough for implementation and evaluation, while still leaving room for extensions depending on time.
 
 \section*{4. Methodology}
 
@@ -79,7 +77,7 @@ A suitable dataset can be built from existing Wikipedia articles. For each selec
 
 The key experimental condition is that the generation system must not see the original article text during inference. It may only access the cited references and optionally metadata such as citation titles, publication sources, dates, or URLs.
 
-A practical limitation is that some source documents may no longer be accessible or may contain paywalled material. Therefore, the dataset should prioritize articles with accessible references such as news pages, government websites, open reports, and scientific abstracts. The dataset could also be restricted to a few article categories to reduce complexity in the first stage.
+A practical limitation is that some source documents may no longer be accessible or may contain paywalled material. Therefore, the dataset should prioritize articles with accessible references such as news pages, government websites, open reports, and scientific abstracts.
 
 \subsection*{4.2 Preprocessing and Source Representation}
 
@@ -91,7 +89,7 @@ The cited documents need to be cleaned and normalized. Boilerplate removal, dupl
     \item and irrelevant web noise such as menus, advertisements, cookie banners, or navigation text.
 \end{itemize}
 
-After preprocessing, each source can be represented as chunks or passages, enriched with metadata such as publication type, date, named entities, and topic keywords. This makes later retrieval and content selection easier.
+After preprocessing, each source can be represented as chunks or passages, enriched with metadata such as publication type, date, named entities, and topic keywords.
 
 \subsection*{4.3 Content Selection}
 
@@ -104,8 +102,6 @@ A central difficulty is that the sources will contain more information than shou
     \item and identify topic-defining statements from titles and lead paragraphs.
 \end{itemize}
 
-This step can already be framed as an interesting NLP problem of multi-document content planning.
-
 \subsection*{4.4 Article Planning}
 
 Before generating fluent text, the system should ideally build an article plan. This may include:
@@ -117,7 +113,7 @@ Before generating fluent text, the system should ideally build an article plan. 
     \item and assignment of extracted facts to sections.
 \end{itemize}
 
-For example, biography-like articles may naturally split into ``Early life'', ``Career'', and ``Legacy'', while technical topics may require ``Background'', ``Method'', and ``Applications''. A planning stage is likely to improve coherence compared with directly generating one long text from all sources at once.
+For example, biography-like articles may naturally split into ``Early life'', ``Career'', and ``Legacy'', while technical topics may require ``Background'', ``Method'', and ``Applications''.
 
 \subsection*{4.5 Text Generation}
 
@@ -133,34 +129,18 @@ The generated text should follow stylistic constraints typical of Wikipedia: neu
 
 \section*{5. Evaluation}
 
-Evaluation should combine automatic and human-centered measures.
-
-\subsection*{5.1 Automatic Evaluation}
+Evaluation must rely on automatic measures, since a human rating study is outside the scope of this project.
 
 Possible automatic metrics include:
 
 \begin{itemize}
     \item overlap-based scores against the original article, such as ROUGE,
-    \item semantic similarity measures, such as embedding-based metrics,
-    \item factual support checks using citation-source entailment,
-    \item and structural metrics such as correct prediction of major sections or article category.
+    \item semantic similarity measures based on sentence or document embeddings,
+    \item factual support checks by verifying whether generated statements are entailed by the cited sources,
+    \item and structural metrics such as predicted section headings, article category, or lead quality.
 \end{itemize}
 
-Pure text overlap is not sufficient, because many valid reconstructions may use different wording or organization. Therefore, semantic and factual measures are especially important.
-
-\subsection*{5.2 Human Evaluation}
-
-Human evaluation is essential for this task. Reviewers can rate generated articles according to:
-
-\begin{itemize}
-    \item factual grounding,
-    \item completeness,
-    \item coherence,
-    \item neutrality,
-    \item and overall similarity to a Wikipedia article.
-\end{itemize}
-
-One useful setup would be to show evaluators the generated article and the source references, but not the original Wikipedia entry. They can then judge whether the article seems credible and grounded. In a second setting, evaluators can compare the generated article against the original and assess how much important content has been recovered.
+Pure text overlap is not sufficient, because a good reconstruction may use different wording or a different order than the original article. Therefore, the evaluation should combine lexical similarity, semantic similarity, and source-grounded factuality. This allows us to judge not only whether the generated article resembles the hidden Wikipedia article, but also whether it stays supported by the available references.
 
 \section*{6. Expected Challenges}
 
