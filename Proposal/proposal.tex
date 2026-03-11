@@ -16,13 +16,13 @@
     citecolor=black
 }
 
-\setstretch{1.12}
+\setstretch{1.00}
 \setlist[itemize]{topsep=4pt,itemsep=2pt,leftmargin=1.8em}
 \setlist[enumerate]{topsep=4pt,itemsep=2pt,leftmargin=1.8em}
 
-\title{\textbf{Project Proposal: Reconstructing Wikipedia Articles from Citation Sources}}
-\author{Master Program: AI Engineering}
-\date{}
+\title{\textbf{Group Project Proposal: Reconstructing Wikipedia Articles from Citation Sources}}
+\author{Nino Reil, Andreas Wallnöfer, Zoltan Bek, Armin Lohse}
+\date{\today}
 
 \begin{document}
 
@@ -30,11 +30,7 @@
 
 \section*{1. Motivation and Idea}
 
-Wikipedia articles are usually written as concise, neutral, and well-structured summaries of knowledge that is grounded in external sources. In practice, the references of a Wikipedia article often point to books, news articles, reports, scientific papers, or official websites that support individual claims in the text. This project asks an interesting Natural Language Processing question: \emph{Can we reconstruct a plausible Wikipedia-style article if we are only given the cited source material, but not the original article itself?}
-
-The problem is attractive for an AI Engineering master project because it combines several core NLP tasks in a single pipeline: document retrieval and preprocessing, information extraction, summarization, discourse planning, style control, factual grounding, and evaluation. It also has a clear real-world flavor. The system is not merely asked to summarize one source, but to combine many sources into a coherent encyclopedic article. This requires selecting relevant facts, avoiding redundancy, deciding on an article structure, and producing language that resembles Wikipedia style: neutral, concise, and information-dense.
-
-The project also has a strong scientific angle. It allows us to investigate how much of an encyclopedic article can be explained by its citation graph alone. Some Wikipedia articles may be almost fully reconstructable from references, while others may depend heavily on editor knowledge, historical structure, or uncited linking sentences. This creates interesting research questions about source sufficiency, information coverage, and grounded generation.
+Wikipedia articles are usually written as concise, neutral, and well-structured summaries of knowledge that is grounded in external sources. In practice, the references of a Wikipedia article often point to books, news articles, reports, scientific papers, or official websites that support individual claims in the text. This project asks an the question: \emph{Can we reconstruct a plausible Wikipedia-style article if we are only given the cited source material, but not the original article itself?}
 
 \section*{2. Project Goal}
 
@@ -171,32 +167,5 @@ One useful setup would be to show evaluators the generated article and the sourc
 The task is challenging for several reasons. First, citations often support only specific claims and not the entire article structure. Second, some referenced pages may contain noisy or weakly relevant text. Third, the original Wikipedia article may include background knowledge or linking phrases that are not explicitly present in the sources. Fourth, there is a risk of hallucination when the model tries to bridge gaps between partially related references.
 
 Another challenge is that citation sets vary strongly across article types. A well-cited current event article may be easier to reconstruct than an article on a broad cultural concept. This suggests that the project should begin with a well-defined subset of article categories.
-
-\section*{7. Additional Ideas and Extensions}
-
-The main topic is already strong, but a few extensions could make the project even more interesting:
-
-\begin{itemize}
-    \item \textbf{Article type prediction from citations:} Predict whether the hidden article is a biography, organization, event, technology, or scientific topic before generating it.
-    \item \textbf{Citation sufficiency analysis:} Estimate whether the citation set is rich enough to reconstruct a good article at all.
-    \item \textbf{Section generation as a separate task:} Instead of only producing full articles, also generate the section outline and compare it to the original article structure.
-    \item \textbf{Infobox extraction:} Generate a structured infobox-like representation, for example dates, people, locations, or organization fields, directly from the source material.
-    \item \textbf{Leave-one-source-out experiments:} Remove one citation at a time and measure how much article quality drops. This shows which sources are most important.
-    \item \textbf{Faithfulness filtering:} Add a post-processing stage that verifies each generated sentence against the retrieved evidence and flags unsupported content.
-\end{itemize}
-
-These ideas are useful because they add analytical depth without changing the core project theme.
-
-\section*{8. Expected Contribution}
-
-The project is expected to contribute in three ways. First, it delivers a concrete NLP system for source-grounded encyclopedic generation. Second, it provides an empirical analysis of how much Wikipedia article content can be recovered from citations alone. Third, it compares alternative AI engineering designs, from simple summarization baselines to more structured and grounded generation pipelines.
-
-This makes the project suitable for a master program in AI Engineering: it is technically implementable, scientifically interesting, and broad enough to demonstrate engineering competence in data collection, pipeline design, experimentation, and evaluation.
-
-\section*{9. Conclusion}
-
-This proposal presents a Natural Language Processing project that aims to reconstruct Wikipedia-style articles from their cited references only, without access to the original article text. The task is novel and challenging because it combines multi-document understanding, grounded generation, and discourse planning. At the same time, it is concrete enough to be implemented and evaluated within a university project.
-
-The topic fits very well into an AI Engineering context because it does not focus on language generation in isolation, but on the design of a complete, source-aware NLP system. With the proposed extensions, the project can go beyond plain article generation and also investigate article structure prediction, citation sufficiency, and factual verification. This gives the work both practical relevance and scientific value.
 
 \end{document}
