@@ -1,0 +1,202 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{setspace}
+\usepackage{parskip}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue,
+    citecolor=black
+}
+
+\setstretch{1.12}
+\setlist[itemize]{topsep=4pt,itemsep=2pt,leftmargin=1.8em}
+\setlist[enumerate]{topsep=4pt,itemsep=2pt,leftmargin=1.8em}
+
+\title{\textbf{Project Proposal: Reconstructing Wikipedia Articles from Citation Sources}}
+\author{Master Program: AI Engineering}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section*{1. Motivation and Idea}
+
+Wikipedia articles are usually written as concise, neutral, and well-structured summaries of knowledge that is grounded in external sources. In practice, the references of a Wikipedia article often point to books, news articles, reports, scientific papers, or official websites that support individual claims in the text. This project asks an interesting Natural Language Processing question: \emph{Can we reconstruct a plausible Wikipedia-style article if we are only given the cited source material, but not the original article itself?}
+
+The problem is attractive for an AI Engineering master project because it combines several core NLP tasks in a single pipeline: document retrieval and preprocessing, information extraction, summarization, discourse planning, style control, factual grounding, and evaluation. It also has a clear real-world flavor. The system is not merely asked to summarize one source, but to combine many sources into a coherent encyclopedic article. This requires selecting relevant facts, avoiding redundancy, deciding on an article structure, and producing language that resembles Wikipedia style: neutral, concise, and information-dense.
+
+The project also has a strong scientific angle. It allows us to investigate how much of an encyclopedic article can be explained by its citation graph alone. Some Wikipedia articles may be almost fully reconstructable from references, while others may depend heavily on editor knowledge, historical structure, or uncited linking sentences. This creates interesting research questions about source sufficiency, information coverage, and grounded generation.
+
+\section*{2. Project Goal}
+
+The main goal is to design and evaluate a system that receives the original references of a Wikipedia article and generates a new Wikipedia-style article \emph{without access to the original article text}. The generated article should aim to be:
+
+\begin{itemize}
+    \item factually grounded in the provided references,
+    \item written in a neutral and encyclopedic style,
+    \item well structured into sections,
+    \item coherent across paragraphs,
+    \item and reasonably complete with respect to the available sources.
+\end{itemize}
+
+The output does not need to reproduce the original article word-for-word. Instead, the target is to generate a plausible article that a reader could recognize as a Wikipedia-like entry on the same topic.
+
+A secondary goal is to study which parts of this task are easy or hard. For example, can the topic itself be inferred robustly from citations? Can article sections be predicted from source distributions? Which facts are stated by many sources and which depend on only one citation? These questions turn the project from a pure generation task into a broader analysis of source-grounded encyclopedic writing.
+
+\section*{3. Research Questions}
+
+The project can be organized around the following research questions:
+
+\begin{enumerate}
+    \item How well can a Wikipedia-style article be generated using only the cited source documents?
+    \item Which pipeline performs better: direct end-to-end generation, retrieval-augmented generation, or a structured pipeline with content planning first and text generation second?
+    \item How much article structure can be inferred from citations alone, for example title, topic category, and section layout?
+    \item How factually grounded is the generated article, and how often does the system introduce unsupported claims or hallucinations?
+    \item Which article types are easier to reconstruct, for example biographies, historical events, organizations, or technical topics?
+\end{enumerate}
+
+These questions are concrete enough for implementation and evaluation, while still leaving room for extensions depending on time.
+
+\section*{4. Methodology}
+
+The project can be implemented as a multi-stage NLP pipeline.
+
+\subsection*{4.1 Dataset Construction}
+
+A suitable dataset can be built from existing Wikipedia articles. For each selected article, we collect:
+
+\begin{itemize}
+    \item the article title,
+    \item the article text as reference target for evaluation,
+    \item the citation list,
+    \item and, where possible, the referenced source content itself.
+\end{itemize}
+
+The key experimental condition is that the generation system must not see the original article text during inference. It may only access the cited references and optionally metadata such as citation titles, publication sources, dates, or URLs.
+
+A practical limitation is that some source documents may no longer be accessible or may contain paywalled material. Therefore, the dataset should prioritize articles with accessible references such as news pages, government websites, open reports, and scientific abstracts. The dataset could also be restricted to a few article categories to reduce complexity in the first stage.
+
+\subsection*{4.2 Preprocessing and Source Representation}
+
+The cited documents need to be cleaned and normalized. Boilerplate removal, duplicate detection, language filtering, and segmentation into passages are important here. The system should distinguish between:
+
+\begin{itemize}
+    \item useful factual content,
+    \item citation metadata,
+    \item and irrelevant web noise such as menus, advertisements, cookie banners, or navigation text.
+\end{itemize}
+
+After preprocessing, each source can be represented as chunks or passages, enriched with metadata such as publication type, date, named entities, and topic keywords. This makes later retrieval and content selection easier.
+
+\subsection*{4.3 Content Selection}
+
+A central difficulty is that the sources will contain more information than should appear in the final article. The system must decide what is salient enough to include. Several strategies are possible:
+
+\begin{itemize}
+    \item rank source passages by centrality across documents,
+    \item extract named entities, dates, and relations,
+    \item detect facts that are confirmed by multiple references,
+    \item and identify topic-defining statements from titles and lead paragraphs.
+\end{itemize}
+
+This step can already be framed as an interesting NLP problem of multi-document content planning.
+
+\subsection*{4.4 Article Planning}
+
+Before generating fluent text, the system should ideally build an article plan. This may include:
+
+\begin{itemize}
+    \item predicted article title or topic label,
+    \item short lead summary,
+    \item likely section headings,
+    \item and assignment of extracted facts to sections.
+\end{itemize}
+
+For example, biography-like articles may naturally split into ``Early life'', ``Career'', and ``Legacy'', while technical topics may require ``Background'', ``Method'', and ``Applications''. A planning stage is likely to improve coherence compared with directly generating one long text from all sources at once.
+
+\subsection*{4.5 Text Generation}
+
+Once relevant facts and article structure are available, the final Wikipedia-style article can be generated. Different approaches can be compared:
+
+\begin{itemize}
+    \item \textbf{Baseline summarization:} merge the most important passages and create a neutral multi-document summary.
+    \item \textbf{Retrieval-augmented generation:} retrieve source passages for each planned section and generate section text grounded in them.
+    \item \textbf{Structured generation:} first produce an outline, then section bullet points, then final prose.
+\end{itemize}
+
+The generated text should follow stylistic constraints typical of Wikipedia: neutral tone, low subjectivity, no unsupported speculation, and no first-person language.
+
+\section*{5. Evaluation}
+
+Evaluation should combine automatic and human-centered measures.
+
+\subsection*{5.1 Automatic Evaluation}
+
+Possible automatic metrics include:
+
+\begin{itemize}
+    \item overlap-based scores against the original article, such as ROUGE,
+    \item semantic similarity measures, such as embedding-based metrics,
+    \item factual support checks using citation-source entailment,
+    \item and structural metrics such as correct prediction of major sections or article category.
+\end{itemize}
+
+Pure text overlap is not sufficient, because many valid reconstructions may use different wording or organization. Therefore, semantic and factual measures are especially important.
+
+\subsection*{5.2 Human Evaluation}
+
+Human evaluation is essential for this task. Reviewers can rate generated articles according to:
+
+\begin{itemize}
+    \item factual grounding,
+    \item completeness,
+    \item coherence,
+    \item neutrality,
+    \item and overall similarity to a Wikipedia article.
+\end{itemize}
+
+One useful setup would be to show evaluators the generated article and the source references, but not the original Wikipedia entry. They can then judge whether the article seems credible and grounded. In a second setting, evaluators can compare the generated article against the original and assess how much important content has been recovered.
+
+\section*{6. Expected Challenges}
+
+The task is challenging for several reasons. First, citations often support only specific claims and not the entire article structure. Second, some referenced pages may contain noisy or weakly relevant text. Third, the original Wikipedia article may include background knowledge or linking phrases that are not explicitly present in the sources. Fourth, there is a risk of hallucination when the model tries to bridge gaps between partially related references.
+
+Another challenge is that citation sets vary strongly across article types. A well-cited current event article may be easier to reconstruct than an article on a broad cultural concept. This suggests that the project should begin with a well-defined subset of article categories.
+
+\section*{7. Additional Ideas and Extensions}
+
+The main topic is already strong, but a few extensions could make the project even more interesting:
+
+\begin{itemize}
+    \item \textbf{Article type prediction from citations:} Predict whether the hidden article is a biography, organization, event, technology, or scientific topic before generating it.
+    \item \textbf{Citation sufficiency analysis:} Estimate whether the citation set is rich enough to reconstruct a good article at all.
+    \item \textbf{Section generation as a separate task:} Instead of only producing full articles, also generate the section outline and compare it to the original article structure.
+    \item \textbf{Infobox extraction:} Generate a structured infobox-like representation, for example dates, people, locations, or organization fields, directly from the source material.
+    \item \textbf{Leave-one-source-out experiments:} Remove one citation at a time and measure how much article quality drops. This shows which sources are most important.
+    \item \textbf{Faithfulness filtering:} Add a post-processing stage that verifies each generated sentence against the retrieved evidence and flags unsupported content.
+\end{itemize}
+
+These ideas are useful because they add analytical depth without changing the core project theme.
+
+\section*{8. Expected Contribution}
+
+The project is expected to contribute in three ways. First, it delivers a concrete NLP system for source-grounded encyclopedic generation. Second, it provides an empirical analysis of how much Wikipedia article content can be recovered from citations alone. Third, it compares alternative AI engineering designs, from simple summarization baselines to more structured and grounded generation pipelines.
+
+This makes the project suitable for a master program in AI Engineering: it is technically implementable, scientifically interesting, and broad enough to demonstrate engineering competence in data collection, pipeline design, experimentation, and evaluation.
+
+\section*{9. Conclusion}
+
+This proposal presents a Natural Language Processing project that aims to reconstruct Wikipedia-style articles from their cited references only, without access to the original article text. The task is novel and challenging because it combines multi-document understanding, grounded generation, and discourse planning. At the same time, it is concrete enough to be implemented and evaluated within a university project.
+
+The topic fits very well into an AI Engineering context because it does not focus on language generation in isolation, but on the design of a complete, source-aware NLP system. With the proposed extensions, the project can go beyond plain article generation and also investigate article structure prediction, citation sufficiency, and factual verification. This gives the work both practical relevance and scientific value.
+
+\end{document}
