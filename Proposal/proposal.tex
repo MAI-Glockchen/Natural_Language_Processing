@@ -18,9 +18,8 @@
 
 \setstretch{1.00}
 \setlist[itemize]{topsep=4pt,itemsep=2pt,leftmargin=1.8em}
-\setlist[enumerate]{topsep=4pt,itemsep=2pt,leftmargin=1.8em}
 
-\title{\textbf{Group Project Proposal: Reconstructing Wikipedia Articles from Citation Sources}}
+\title{\textbf{Generating Wikipedia Articles from Citations}}
 \author{Nino Reil, Andreas Wallnöfer, Zoltan Bek, Armin Lohse}
 \date{\today}
 
@@ -28,124 +27,83 @@
 
 \maketitle
 
-\section*{1. Motivation and Idea}
+\section{Problem Description}
 
 Wikipedia articles are usually written as concise, neutral, and well-structured summaries of knowledge that is grounded in external sources. In practice, the references of a Wikipedia article often point to books, news articles, reports, scientific papers, or official websites that support individual claims in the text. This project asks the question: \emph{Can we reconstruct a plausible Wikipedia-style article if we are only given the cited source material, but not the original article itself?}
 
-\section*{2. Project Goal}
+\section{Dataset Description}
 
-The main goal is to design and evaluate a system that receives the original references of a Wikipedia article and generates a new Wikipedia-style article \emph{without access to the original article text}. The generated article should aim to be:
-
-\begin{itemize}
-    \item factually grounded in the provided references,
-    \item written in a neutral and encyclopedic style,
-    \item well structured into sections,
-    \item coherent across paragraphs,
-    \item and reasonably complete with respect to the available sources.
-\end{itemize}
-
-The output does not need to reproduce the original article word-for-word. Instead, the target is to generate a plausible article that a reader could recognize as a Wikipedia-like entry on the same topic.
-
-A secondary goal is to study which parts of this task are easy or hard. For example, can the topic itself be inferred robustly from citations? Can article sections be predicted from source distributions? Which facts are stated by many sources and which depend on only one citation?
-
-\section*{3. Research Questions}
-
-The project can be organized around the following research questions:
-
-\begin{enumerate}
-    \item How well can a Wikipedia-style article be generated using only the cited source documents?
-    \item Which pipeline performs better: direct end-to-end generation, retrieval-augmented generation, or a structured pipeline with content planning first and text generation second?
-    \item How much article structure can be inferred from citations alone, for example title, topic category, and section layout?
-    \item How factually grounded is the generated article, and how often does the system introduce unsupported claims or hallucinations?
-    \item Which article types are easier to reconstruct, for example biographies, historical events, organizations, or technical topics?
-\end{enumerate}
-
-\section*{4. Methodology}
-
-The project can be implemented as a multi-stage NLP pipeline.
-
-\subsection*{4.1 Dataset Construction}
-
-A suitable dataset can be built from existing Wikipedia articles. For each selected article, we collect:
+We will build the dataset from existing Wikipedia articles and their references.
 
 \begin{itemize}
-    \item the article title,
-    \item the article text as reference target for evaluation,
-    \item the citation list,
-    \item and, where possible, the referenced source content itself.
+    \item \textbf{Dataset source:} Wikipedia articles together with their cited external references.
+    \item \textbf{Type of text:} encyclopedic article text, citation metadata, and source documents such as news articles, reports, official websites, and scientific abstracts.
+    \item \textbf{Approximate size:} about 420 Wikipedia articles, and all their citation data.
+    \item \textbf{Language:} English.
+    \item \textbf{Public or collected:} collected from public sources.
 \end{itemize}
 
-The key experimental condition is that the generation system must not see the original article text during inference. It may only access the cited references and optionally metadata such as citation titles, publication sources, dates, or URLs.
-
-A practical limitation is that some source documents may no longer be accessible or may contain paywalled material. Therefore, the dataset should prioritize articles with accessible references such as news pages, government websites, open reports, and scientific abstracts.
-
-\subsection*{4.2 Preprocessing and Source Representation}
-
-The cited documents need to be cleaned and normalized. Boilerplate removal, duplicate detection, language filtering, and segmentation into passages are important here. The system should distinguish between:
-
+To keep the task feasible and the source coverage reliable, we will only include Wikipedia articles that satisfy two conditions:
 \begin{itemize}
-    \item useful factual content,
-    \item citation metadata,
-    \item and irrelevant web noise such as menus, advertisements, cookie banners, or navigation text.
+    \item at least 20 citations in total,
+    \item at least 90\% of these citations are accessible to us, for example not paywalled or missing.
 \end{itemize}
 
-After preprocessing, each source can be represented as chunks or passages, enriched with metadata such as publication type, date, named entities, and topic keywords.
+Each sample consists of one Wikipedia article and its citation set. The original article text is used only as a reference target for evaluation, not as input to the generation system.
 
-\subsection*{4.3 Content Selection}
-
-A central difficulty is that the sources will contain more information than should appear in the final article. The system must decide what is salient enough to include. Several strategies are possible:
-
+This is mainly a generation task, so the dataset does not contain class labels in the standard classification sense. Instead, each sample has:
 \begin{itemize}
-    \item rank source passages by centrality across documents,
-    \item extract named entities, dates, and relations,
-    \item detect facts that are confirmed by multiple references,
-    \item and identify topic-defining statements from titles and lead paragraphs.
+    \item input: cited source documents and citation metadata,
+    \item target: the original Wikipedia article text.
 \end{itemize}
 
-\subsection*{4.4 Article Planning}
+The dataset will be divided into training, validation, and test sets, resulting in about 300 training articles, 60 validation articles, and 60 test articles.
 
-Before generating fluent text, the system should ideally build an article plan. This may include:
+Preprocessing steps will include source collection, boilerplate removal, duplicate detection, passage segmentation, and filtering of inaccessible or low-quality references.
 
+\section{Methodology Approach}
+
+We plan to compare at least two approaches.
+
+\textbf{Preprocessing steps:}
 \begin{itemize}
-    \item predicted article title or topic label,
-    \item short lead summary,
-    \item likely section headings,
-    \item and assignment of extracted facts to sections.
+    \item extract citations from selected Wikipedia articles,
+    \item download or collect accessible referenced documents,
+    \item remove web noise such as navigation text or advertisements,
+    \item split sources into passages,
+    \item extract metadata such as title, date, publisher, and named entities.
 \end{itemize}
 
-For example, biography-like articles may naturally split into ``Early life'', ``Career'', and ``Legacy'', while technical topics may require ``Background'', ``Method'', and ``Applications''.
+\textbf{Embedding model:} We will use a transformer-based embedding model to represent source passages and support retrieval of relevant evidence for generation.
 
-\subsection*{4.5 Text Generation}
+\textbf{Approach 1: Baseline.}
+A simpler baseline will rank important passages from the cited sources and create a multi-document summary, for example using extractive summarization or a lightweight generation pipeline.
 
-Once relevant facts and article structure are available, the final Wikipedia-style article can be generated. Different approaches can be compared:
+\textbf{Approach 2: Advanced model.}
+A more advanced approach will use retrieval-augmented generation with a transformer model. Relevant passages will be retrieved for each article section or generation step, and the model will generate a Wikipedia-style article grounded in these passages.
 
+If time permits, we may add a structured variant in which the system first predicts an outline or section plan and then generates the final text section by section.
+
+\section{Evaluation Metrics}
+
+The models will be evaluated automatically against the original hidden Wikipedia article.
+
+We plan to use:
 \begin{itemize}
-    \item \textbf{Baseline summarization:} merge the most important passages and create a neutral multi-document summary.
-    \item \textbf{Retrieval-augmented generation:} retrieve source passages for each planned section and generate section text grounded in them.
-    \item \textbf{Structured generation:} first produce an outline, then section bullet points, then final prose.
+    \item ROUGE for lexical overlap,
+    \item semantic similarity based on sentence or document embeddings,
+    \item factual support checks against the cited sources,
+    \item and structural measures such as section heading similarity or lead quality.
 \end{itemize}
 
-The generated text should follow stylistic constraints typical of Wikipedia: neutral tone, low subjectivity, no unsupported speculation, and no first-person language.
+The dataset will be divided into training, validation, and test sets, resulting in about 300 training articles, 60 validation articles, and 60 test articles. The validation set will be used for model selection and parameter tuning, while the test set will be kept untouched for the final evaluation.
 
-\section*{5. Evaluation}
+Since exact wording may differ even in a good reconstruction, we will not rely on a single metric, but combine overlap, semantic similarity, and source-grounded factuality.
 
-Evaluation must rely on automatic measures, since a human rating study is outside the scope of this project.
+\section{Expected Results}
 
-Possible automatic metrics include:
+We expect the transformer-based retrieval-augmented approach to outperform the baseline because it can better capture context across multiple sources and generate more coherent text.
 
-\begin{itemize}
-    \item overlap-based scores against the original article, such as ROUGE,
-    \item semantic similarity measures based on sentence or document embeddings,
-    \item factual support checks by verifying whether generated statements are entailed by the cited sources,
-    \item and structural metrics such as predicted section headings, article category, or lead quality.
-\end{itemize}
-
-Pure text overlap is not sufficient, because a good reconstruction may use different wording or a different order than the original article. Therefore, the evaluation should combine lexical similarity, semantic similarity, and source-grounded factuality. This allows us to judge not only whether the generated article resembles the hidden Wikipedia article, but also whether it stays supported by the available references.
-
-\section*{6. Expected Challenges}
-
-The task is challenging for several reasons. First, citations often support only specific claims and not the entire article structure. Second, some referenced pages may contain noisy or weakly relevant text. Third, the original Wikipedia article may include background knowledge or linking phrases that are not explicitly present in the sources. Fourth, there is a risk of hallucination when the model tries to bridge gaps between partially related references.
-
-Another challenge is that citation sets vary strongly across article types. A well-cited current event article may be easier to reconstruct than an article on a broad cultural concept. This suggests that the project should begin with a well-defined subset of article categories.
+We also expect article quality to depend strongly on the citation set. Articles with many accessible and focused references should be easier to reconstruct than broad topics with sparse or noisy citations. In general, we expect the generated articles to recover the main facts and overall topic, but to differ from the original Wikipedia article in wording, structure, and level of detail.
 
 \end{document}
