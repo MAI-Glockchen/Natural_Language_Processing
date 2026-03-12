@@ -90,10 +90,9 @@ The models will be evaluated automatically against the original hidden Wikipedia
 
 We plan to use:
 \begin{itemize}
-    \item ROUGE for lexical overlap,
-    \item semantic similarity based on sentence or document embeddings,
-    \item factual support checks against the cited sources,
-    \item and structural measures such as section heading similarity or lead quality.
+    \item ROUGE-1, ROUGE-2, and ROUGE-L for lexical overlap,
+    \item BERTScore for semantic similarity,
+    \item and simple structural measures such as section count difference and article length ratio.
 \end{itemize}
 
 The dataset will be divided into training, validation, and test sets, resulting in about 300 training articles, 60 validation articles, and 60 test articles. The validation set will be used for model selection and parameter tuning, while the test set will be kept untouched for the final evaluation.
