@@ -57,11 +57,15 @@ This is mainly a generation task, so the dataset does not contain class labels i
     \item target: the original Wikipedia article text.
 \end{itemize}
 
-The dataset will be divided into training, validation, and test sets, resulting in about 300 training articles, 60 validation articles, and 60 test articles.
-
-Preprocessing steps will include source collection, boilerplate removal, duplicate detection, passage segmentation, and filtering of inaccessible or low-quality references.
-
 \section{Methodology Approach}
+
+The dataset (420 articles and their citations) will be divided into
+\begin{enumerate}
+    \item Training: 300
+    \item Validation: 60
+    \item Test: 60
+\end{enumerate}
+The validation set will be used for model selection and parameter tuning, while the test set will be kept untouched for the final evaluation.
 
 We plan to compare at least two approaches.
 
@@ -86,7 +90,7 @@ If time permits, we may add a structured variant in which the system first predi
 
 \section{Evaluation Metrics}
 
-The models will be evaluated automatically against the original hidden Wikipedia article.
+The models will be evaluated automatically against the original Wikipedia article, which is not provided as input to the system.
 
 We plan to use:
 \begin{itemize}
@@ -95,9 +99,7 @@ We plan to use:
     \item and simple structural measures such as section count difference and article length ratio.
 \end{itemize}
 
-The dataset will be divided into training, validation, and test sets, resulting in about 300 training articles, 60 validation articles, and 60 test articles. The validation set will be used for model selection and parameter tuning, while the test set will be kept untouched for the final evaluation.
-
-Since exact wording may differ even in a good reconstruction, we will not rely on a single metric, but combine overlap, semantic similarity, and source-grounded factuality.
+Since exact wording may differ even in a good reconstruction, we will not rely on a single metric, but combine overlap, and semantic similarity.
 
 \section{Expected Results}
 

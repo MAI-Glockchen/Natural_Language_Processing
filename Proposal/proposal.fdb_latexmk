@@ -1,8 +1,9 @@
 # Fdb version 4
-["pdflatex"] 1773339283.75071 "/home/armin/Repos/FH Technikum Repos/Natural_Language_Processing/Proposal/proposal.tex" "proposal.pdf" "proposal" 1773339284.05101 0
-  "/home/armin/Repos/FH Technikum Repos/Natural_Language_Processing/Proposal/proposal.tex" 1773339283.5871 5587 1bf64f28a8265f2b78d520d799761b36 ""
+["pdflatex"] 1773400336.45957 "/home/armin/Repos/FH Technikum/Natural_Language_Processing/Proposal/proposal.tex" "proposal.pdf" "proposal" 1773400336.75479 0
+  "/home/armin/Repos/FH Technikum/Natural_Language_Processing/Proposal/proposal.tex" 1773400336.28487 5277 eec7f3a2b28c94de19cf7de9de1e6d29 ""
   "/usr/share/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc" 1767555874 2971 def0b6c1f0b107b3b936def894055589 ""
   "/usr/share/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc" 1767555874 2900 1537cc8184ad1792082cd229ecc269f4 ""
+  "/usr/share/texmf-dist/fonts/map/fontname/texfonts.map" 1767555874 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texmf-dist/fonts/tfm/jknappen/ec/ecbx1000.tfm" 1767555874 3584 2d666ecf6d466d8b007246bc2f94d9da ""
   "/usr/share/texmf-dist/fonts/tfm/jknappen/ec/ecbx1440.tfm" 1767555874 3584 13049b61b922a28b158a38aeff75ee9b ""
   "/usr/share/texmf-dist/fonts/tfm/jknappen/ec/ecbx1728.tfm" 1767555874 3584 ad49a18d8515beef6d92d4d3f197d0fd ""
@@ -73,11 +74,11 @@
   "/usr/share/texmf-dist/tex/latex/url/url.sty" 1767555874 12796 8edb7d69a20b857904dd0ea757c14ec9 ""
   "/usr/share/texmf-dist/tex/latex/xcolor/xcolor.sty" 1767555874 55384 b454dec21c2d9f45ec0b793f0995b992 ""
   "/usr/share/texmf-dist/web2c/texmf.cnf" 1767555874 42087 b0f9697c952c8f5a8eede4134282cb0d ""
-  "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1768368689 5306604 df2447a3a3aadc3acfc686cd8dc19dd6 ""
-  "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1768368679 2492050 170a9456920b10ae6ccdd21310ef069a ""
-  "proposal.aux" 1773339284.01209 739 3d9a38df4a669c49a4a1306b312564ee "pdflatex"
-  "proposal.out" 1773339284.01309 690 5d8499a114d2a796ea0b197217eab3fc "pdflatex"
-  "proposal.tex" 1773339283.5871 5587 1bf64f28a8265f2b78d520d799761b36 ""
+  "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1768665716 5311557 9da84c45f5b388655502706482323571 ""
+  "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1768665652 2008244 e2142f5d7cea255b54b7796589fb4903 ""
+  "proposal.aux" 1773400336.71766 739 3d9a38df4a669c49a4a1306b312564ee "pdflatex"
+  "proposal.out" 1773400336.71866 690 5d8499a114d2a796ea0b197217eab3fc "pdflatex"
+  "proposal.tex" 1773400336.28487 5277 eec7f3a2b28c94de19cf7de9de1e6d29 ""
   (generated)
   "proposal.aux"
   "proposal.log"
