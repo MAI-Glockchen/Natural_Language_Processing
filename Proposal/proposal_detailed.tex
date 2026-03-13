@@ -11,7 +11,7 @@
 \usepackage{tabularx}
 \usepackage{array}
 \usepackage{seqsplit}
-\usepackage{footmisc}
+\usepackage[multiple]{footmisc}
 
 \hypersetup{
     colorlinks=true,
@@ -72,7 +72,7 @@ The dataset of 420 samples will be divided into
     \item \textbf{Test:} 60
 \end{enumerate}
 
-The validation set will be used for model selection and parameter tuning, while the test set will be kept untouched for the final evaluation.
+The training set will be used to explore design choices and tune pipeline parameters such as passage length, the number of retrieved passages, topic inference strategies, redundancy filtering thresholds, and prompting strategies for the language model. The validation set will be used to compare candidate pipeline variants and select the final configuration. The test set will be kept untouched and used only for the final evaluation.
 
 \subsection*{Shared Pipeline}
 
@@ -94,7 +94,7 @@ Both approaches use the same initial processing steps:
     \item \textbf{Passage Embedding and Indexing}
 
     Each passage is converted into a vector representation using the embedding model
-    \texttt{\seqsplit{sentence-transformers/all-MiniLM-L6-v2}}\footnote{All suggested models used in this project were chosen because they are recent and can be locally run with modest hardware requirements.}. The resulting embeddings are stored in a vector index (e.g.\ FAISS) for efficient similarity search.
+    \href{https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2}{\texttt{\seqsplit{sentence-transformers/all-MiniLM-L6-v2}}}\footnote{\label{ftnt:models}All suggested models used in this project were chosen because they are recent and can be locally run with modest hardware requirements.}. The resulting embeddings are stored in a vector index (e.g.\ FAISS) for efficient similarity search.
 \end{enumerate}
 
 After these shared steps, the two approaches differ in how they retrieve evidence and generate the final article.
@@ -124,8 +124,8 @@ The generated sections are combined into a final reconstructed article. \\
 
 Suitable local models for the generation step in both approaches are:
 \begin{itemize}
-    \item \texttt{google/gemma-2-2b}\footnote{\label{ftnt:models}All suggested models used in this project were chosen because they are recent and can be locally run with modest hardware requirements.}
-    \item \texttt{microsoft/Phi-3-mini-4k-instruct}\footref{ftnt:models}
+    \item \href{https://huggingface.co/google/gemma-2-2b}{\texttt{google/gemma-2-2b}}\footnote{\label{ftnt:models_gen}All suggested models used in this project were chosen because they are recent and can be locally run with modest hardware requirements.}
+    \item \href{https://huggingface.co/microsoft/Phi-3-mini-4k-instruct}{\texttt{microsoft/Phi-3-mini-4k-instruct}}\footref{ftnt:models_gen}
 \end{itemize}
 
 \section{Evaluation Metrics}
