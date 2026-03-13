@@ -1,0 +1,182 @@
+\documentclass[10pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{setspace}
+\usepackage{parskip}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue,
+    citecolor=black
+}
+
+\setstretch{1.00}
+\setlist[itemize]{topsep=4pt,itemsep=2pt,leftmargin=1.8em}
+
+\title{\textbf{Generating Wikipedia Articles from Citations}}
+\author{Nino Reil, Andreas Wallnöfer, Zoltan Bek, Armin Lohse}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Problem Description}
+
+Wikipedia articles are usually written as concise, neutral, and well-structured summaries of knowledge that is grounded in external sources. In practice, the references of a Wikipedia article often point to books, news articles, reports, scientific papers, or official websites that support individual claims in the text. This project asks the question: \emph{Can we reconstruct a plausible Wikipedia-style article if we are only given the cited source material, but not the original article itself?}
+
+A central challenge is that the cited sources may differ strongly in tone, structure, and writing style, while the generated output should follow the neutral, professional, and objective style typical of Wikipedia articles. The system must therefore not only extract relevant information from the sources, but also transform it into a consistent encyclopedic form.
+
+\section{Dataset Description}
+
+We will build the dataset from existing Wikipedia articles and their references.
+
+\begin{itemize}
+    \item \textbf{Dataset Source:} Wikipedia articles together with their cited external references.
+    \item \textbf{Type of Text:} Encyclopedic article text, citation metadata, and source documents such as news articles, reports, official websites, and scientific abstracts.
+    \item \textbf{Approximate Size:} About 420 Wikipedia articles.
+    \item \textbf{Language:} English.
+    \item \textbf{Public or Collected:} Collected from public sources.
+\end{itemize}
+
+To keep the task feasible and the source coverage reliable, we will only include Wikipedia articles that satisfy two conditions:
+\begin{itemize}
+    \item At least 20 citations in total.
+    \item At least 90\% of these citations are accessible to us, for example because they are not paywalled or missing.
+\end{itemize}
+
+Each sample consists of one Wikipedia article and its citation set. The original article text is used only as a reference target for evaluation, not as input to the generation system.
+
+This is mainly a generation task, so the dataset does not contain class labels in the standard classification sense. Instead, each sample has:
+\begin{itemize}
+    \item \textbf{Input:} Cited source documents.
+    \item \textbf{Target:} The original Wikipedia article text.
+\end{itemize}
+
+\section{Methodology Approach}
+
+The dataset of 420 samples will be divided into
+\begin{enumerate}
+    \item \textbf{Training:} 300
+    \item \textbf{Validation:} 60
+    \item \textbf{Test:} 60
+\end{enumerate}
+
+The validation set will be used for model selection and parameter tuning, while the test set will be kept untouched for the final evaluation.
+
+\textbf{Preprocessing Steps:}
+
+\begin{itemize}
+    \item Extract citations from selected Wikipedia articles.
+    \item Download accessible referenced documents.
+    \item Remove web noise such as navigation text, advertisements, and unrelated page elements.
+    \item Extract the main textual content of the documents.
+    \item Split each document into passages of approximately 150--300 words.
+\end{itemize}
+
+\textbf{Topic Inference}
+
+The generation system does not receive the original Wikipedia article title as input. Instead, the topic of the article is inferred automatically from the cited documents. This is done by extracting candidate phrases from the sources and selecting the most representative one.
+
+Candidate topic phrases are obtained from
+\begin{itemize}
+    \item titles of the cited documents,
+    \item named entities extracted from the text,
+    \item and frequently occurring noun phrases.
+\end{itemize}
+
+These candidates are ranked using frequency and semantic similarity between embeddings, and the most central candidate is selected as the inferred topic of the article. This inferred topic is then used as the query for retrieving relevant passages.
+
+\subsection*{Approach 1: Baseline}
+
+The baseline system reconstructs an article using a simple retrieval and summarization pipeline.
+
+\begin{enumerate}
+    \item \textbf{Passage Embedding}
+
+    Each text passage extracted from the cited documents will be converted into a vector representation using the embedding model:
+
+    \texttt{sentence-transformers/all-MiniLM-L6-v2}
+
+    \item \textbf{Vector Index}
+
+    All passage embeddings will be stored in a vector index (e.g.\ FAISS) to enable efficient similarity search.
+
+    \item \textbf{Passage Retrieval}
+
+    Using the inferred topic, the system retrieves the top-$k$ most relevant passages from the cited documents using cosine similarity in the embedding space.
+
+    \item \textbf{Article Generation}
+
+    The retrieved passages are concatenated and summarized using a pretrained summarization model such as:
+
+    \begin{itemize}
+        \item \texttt{facebook/bart-large-cnn}
+        \item \texttt{t5-small}
+    \end{itemize}
+
+    The resulting summary is treated as the reconstructed article.
+\end{enumerate}
+
+This approach serves as a baseline and does not involve training new models.
+
+\subsection*{Approach 2: Retrieval-Augmented Generation}
+
+The second approach implements a more structured retrieval-augmented generation (RAG) pipeline.
+
+\begin{enumerate}
+    \item \textbf{Embedding and Retrieval}
+
+    The same embedding model (\texttt{all-MiniLM-L6-v2}) and vector index are used to retrieve relevant passages.
+
+    \item \textbf{Topic Expansion}
+
+    Additional queries are derived from the inferred topic by generating related subtopics (for example using noun phrase extraction or keyword expansion). These queries help retrieve passages covering different aspects of the topic.
+
+    \item \textbf{Redundancy Reduction}
+
+    Retrieved passages that are highly similar to each other may be filtered using cosine similarity or clustering in order to reduce repeated information.
+
+    \item \textbf{Section Generation}
+
+    Groups of retrieved passages are summarized independently using a stronger pretrained generation model such as:
+
+    \begin{itemize}
+        \item \texttt{flan-t5-base}
+        \item \texttt{facebook/bart-large-cnn}
+    \end{itemize}
+
+    \item \textbf{Article Assembly}
+
+    The generated summaries are combined into a final reconstructed article.
+\end{enumerate}
+
+This approach still relies on pretrained transformer models but improves the structure and grounding of the generated text through repeated retrieval steps.
+
+\section{Evaluation Metrics}
+
+The models will be evaluated automatically against the original Wikipedia article, which is not provided as input to the system.
+
+Since exact wording may differ even in a good reconstruction, we will not rely on a single metric. We plan to compare the generated article with the original Wikipedia article using
+
+\begin{enumerate}
+    \item \textbf{Title Similarity:} Cosine similarity between sentence-transformer embeddings.
+    \item \textbf{Lexical Content Similarity:} ROUGE-1, ROUGE-2, and ROUGE-L.
+    \item \textbf{Semantic Content Similarity:} BERTScore.
+    \item \textbf{Absolute Difference in Section Count}
+    \item \textbf{Article Length Ratio}
+\end{enumerate}
+
+\section{Expected Results}
+
+We expect the retrieval-augmented generation pipeline to outperform the baseline because it can retrieve more relevant information from the cited documents and generate more coherent text.
+
+One of the main challenges will be bridging the gap between heterogeneous source language and the neutral, professional, and objective wording expected in Wikipedia articles. We expect the generated articles to recover the main facts and overall topic, although wording, structure, and level of detail may differ from the original Wikipedia article.
+
+\end{document}
