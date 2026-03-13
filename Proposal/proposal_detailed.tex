@@ -8,6 +8,10 @@
 \usepackage{enumitem}
 \usepackage{hyperref}
 \usepackage{xcolor}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{seqsplit}
+\usepackage{footmisc}
 
 \hypersetup{
     colorlinks=true,
@@ -70,94 +74,59 @@ The dataset of 420 samples will be divided into
 
 The validation set will be used for model selection and parameter tuning, while the test set will be kept untouched for the final evaluation.
 
-\textbf{Preprocessing Steps:}
+\subsection*{Shared Pipeline}
 
-\begin{itemize}
-    \item Extract citations from selected Wikipedia articles.
-    \item Download accessible referenced documents.
-    \item Remove web noise such as navigation text, advertisements, and unrelated page elements.
-    \item Extract the main textual content of the documents.
-    \item Split each document into passages of approximately 150--300 words.
-\end{itemize}
-
-\textbf{Topic Inference}
-
-The generation system does not receive the original Wikipedia article title as input. Instead, the topic of the article is inferred automatically from the cited documents. This is done by extracting candidate phrases from the sources and selecting the most representative one.
-
-Candidate topic phrases are obtained from
-\begin{itemize}
-    \item titles of the cited documents,
-    \item named entities extracted from the text,
-    \item and frequently occurring noun phrases.
-\end{itemize}
-
-These candidates are ranked using frequency and semantic similarity between embeddings, and the most central candidate is selected as the inferred topic of the article. This inferred topic is then used as the query for retrieving relevant passages.
-
-\subsection*{Approach 1: Baseline}
-
-The baseline system reconstructs an article using a simple retrieval and summarization pipeline.
+Both approaches use the same initial processing steps:
 
 \begin{enumerate}
-    \item \textbf{Passage Embedding}
+    \item \textbf{Citation Extraction and Document Collection}
 
-    Each text passage extracted from the cited documents will be converted into a vector representation using the embedding model:
+    Citations are extracted from selected Wikipedia articles, and accessible referenced documents are downloaded automatically.
 
-    \texttt{sentence-transformers/all-MiniLM-L6-v2}
+    \item \textbf{Document Cleaning and Passage Creation}
 
-    \item \textbf{Vector Index}
+    Web noise such as navigation text, advertisements, and unrelated page elements is removed. The main textual content is extracted and split into passages of approximately 150--300 words.
 
-    All passage embeddings will be stored in a vector index (e.g.\ FAISS) to enable efficient similarity search.
+    \item \textbf{Topic Inference}
 
-    \item \textbf{Passage Retrieval}
+    The generation system does not receive the original Wikipedia article title as input. Instead, the topic is inferred automatically from the cited documents. Candidate topic phrases are obtained from document titles, named entities, and frequently occurring noun phrases. These candidates are ranked using frequency and semantic similarity, and the most central candidate is selected as the inferred topic.
 
-    Using the inferred topic, the system retrieves the top-$k$ most relevant passages from the cited documents using cosine similarity in the embedding space.
+    \item \textbf{Passage Embedding and Indexing}
 
-    \item \textbf{Article Generation}
-
-    The retrieved passages are concatenated and summarized using a pretrained summarization model such as:
-
-    \begin{itemize}
-        \item \texttt{facebook/bart-large-cnn}
-        \item \texttt{t5-small}
-    \end{itemize}
-
-    The resulting summary is treated as the reconstructed article.
+    Each passage is converted into a vector representation using the embedding model
+    \texttt{\seqsplit{sentence-transformers/all-MiniLM-L6-v2}}\footnote{All suggested models used in this project were chosen because they are recent and can be locally run with modest hardware requirements.}. The resulting embeddings are stored in a vector index (e.g.\ FAISS) for efficient similarity search.
 \end{enumerate}
 
-This approach serves as a baseline and does not involve training new models.
+After these shared steps, the two approaches differ in how they retrieve evidence and generate the final article.
 
-\subsection*{Approach 2: Retrieval-Augmented Generation}
+\subsection*{Approach Comparison}
 
-The second approach implements a more structured retrieval-augmented generation (RAG) pipeline.
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}p{0.18\textwidth}|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{} & \textbf{Approach 1: Baseline} & \textbf{Approach 2: Retrieval-Augmented Generation} \\
+\hline
+\textbf{Retrieval} &
+Using the inferred topic, the system retrieves the top-$k$ most relevant passages from the cited documents using cosine similarity in the embedding space. &
+The inferred topic is expanded into related subtopics (e.g.\ via noun phrase extraction or keyword expansion). Relevant passages are retrieved separately for each subtopic. Highly similar passages may be filtered using cosine similarity or clustering to reduce redundancy. \\
+\hline
+\textbf{Generation} &
+The retrieved passages serve as evidence for article generation. A compact language model synthesizes the information into a Wikipedia-style article, combining facts from multiple passages and rewriting them in a neutral encyclopedic style. &
+Instead of generating the article in one step, passages are grouped by subtopic and used to generate sections separately. For each group, the model writes a coherent Wikipedia-style section grounded in the retrieved evidence. \\
+\hline
+\textbf{Output Assembly} &
+The generated text is treated as the reconstructed article. &
+The generated sections are combined into a final reconstructed article. \\
+\hline
+\end{tabularx}
 
-\begin{enumerate}
-    \item \textbf{Embedding and Retrieval}
+\vspace{0.5em}
 
-    The same embedding model (\texttt{all-MiniLM-L6-v2}) and vector index are used to retrieve relevant passages.
-
-    \item \textbf{Topic Expansion}
-
-    Additional queries are derived from the inferred topic by generating related subtopics (for example using noun phrase extraction or keyword expansion). These queries help retrieve passages covering different aspects of the topic.
-
-    \item \textbf{Redundancy Reduction}
-
-    Retrieved passages that are highly similar to each other may be filtered using cosine similarity or clustering in order to reduce repeated information.
-
-    \item \textbf{Section Generation}
-
-    Groups of retrieved passages are summarized independently using a stronger pretrained generation model such as:
-
-    \begin{itemize}
-        \item \texttt{flan-t5-base}
-        \item \texttt{facebook/bart-large-cnn}
-    \end{itemize}
-
-    \item \textbf{Article Assembly}
-
-    The generated summaries are combined into a final reconstructed article.
-\end{enumerate}
-
-This approach still relies on pretrained transformer models but improves the structure and grounding of the generated text through repeated retrieval steps.
+Suitable local models for the generation step in both approaches are:
+\begin{itemize}
+    \item \texttt{google/gemma-2-2b}\footnote{\label{ftnt:models}All suggested models used in this project were chosen because they are recent and can be locally run with modest hardware requirements.}
+    \item \texttt{microsoft/Phi-3-mini-4k-instruct}\footref{ftnt:models}
+\end{itemize}
 
 \section{Evaluation Metrics}
 
@@ -166,7 +135,7 @@ The models will be evaluated automatically against the original Wikipedia articl
 Since exact wording may differ even in a good reconstruction, we will not rely on a single metric. We plan to compare the generated article with the original Wikipedia article using
 
 \begin{enumerate}
-    \item \textbf{Title Similarity:} Cosine similarity between sentence-transformer embeddings.
+    \item \textbf{Title Similarity:} Cosine similarity between embeddings.
     \item \textbf{Lexical Content Similarity:} ROUGE-1, ROUGE-2, and ROUGE-L.
     \item \textbf{Semantic Content Similarity:} BERTScore.
     \item \textbf{Absolute Difference in Section Count}
