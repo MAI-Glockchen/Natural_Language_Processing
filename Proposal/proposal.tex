@@ -85,7 +85,7 @@ Both approaches use the same initial processing steps:
 
     \item \textbf{Document Cleaning and Passage Creation}
 
-    Web noise such as navigation text, advertisements, and unrelated page elements is removed. The main textual content is extracted and split into passages of approximately 150--300 words.
+    Web noise such as navigation text, advertisements, and unrelated page elements is removed. The main textual content is extracted and split into short, semantically coherent passages, for example individual sentences or small groups of neighboring sentences, so that the passages remain suitable for embedding-based retrieval.
 
     \item \textbf{Topic Inference}
 
@@ -125,7 +125,7 @@ The generated sections are combined into a final reconstructed article. \\
 Suitable local models for the generation step in both approaches are:
 \begin{itemize}
     \item \href{https://huggingface.co/google/gemma-2-2b}{\texttt{google/gemma-2-2b}}\footnote{\label{ftnt:models_gen}All suggested models used in this project were chosen because they are recent and can be locally run with modest hardware requirements.}
-    \item \href{https://huggingface.co/microsoft/Phi-3-mini-4k-instruct}{\texttt{microsoft/Phi-3-mini-4k-instruct}}\footref{ftnt:models_gen}
+    \item \href{https://huggingface.co/microsoft/Phi-3.5-mini-instruct}{\texttt{microsoft/microsoft/Phi-3.5-mini-instruct}}\footref{ftnt:models_gen}
 \end{itemize}
 
 \section{Evaluation Metrics}
