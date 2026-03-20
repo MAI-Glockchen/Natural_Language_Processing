@@ -3,7 +3,7 @@
 # -----------------------------
 
 # PostgreSQL connection URL
-DB_URL = "postgresql+psycopg2://wiki_user:wiki_pass@localhost:5432/wiki_db"
+DB_URL = "postgresql+psycopg2://user:password@localhost:5432/wiki_db"
 
 # User-Agent for web requests to avoid blocking by websites
 USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
