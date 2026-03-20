@@ -19,21 +19,32 @@ except LookupError:
 def extract_citations(wikipedia_url):
     print(f"[INFO] Extracting citations from: {wikipedia_url}")
 
-    response = requests.get(wikipedia_url)
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/114.0.0.0 Safari/537.36"
+    }
+
+    response = requests.get(wikipedia_url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
 
-    citations = []
+    citations = set()
 
-    # Wikipedia references are usually in <cite> or <span class="reference-text">
-    for cite in soup.find_all("cite"):
-        link = cite.find("a", href=True)
-        if link:
-            url = link["href"]
-            if url.startswith("http"):
-                citations.append(url)
+    # Suche alle <li> mit id="cite_note-..."
+    for li in soup.find_all("li", id=lambda x: x and x.startswith("cite_note")):
+        cite = li.find("cite")
+        if cite:
+            for link in cite.find_all("a", href=True):
+                url = link['href']
+                if url.startswith("//"):
+                    url = "https:" + url
+                elif url.startswith("/"):
+                    url = "https://en.wikipedia.org" + url
+                if url.startswith("http"):
+                    citations.add(url)
 
     print(f"[INFO] Found {len(citations)} citations")
-    return list(set(citations))  # remove duplicates
+    return list(citations)
 
 
 # -----------------------------
@@ -44,6 +55,13 @@ def fetch_document(url):
     try:
         print(f"[INFO] Fetching: {url}")
         response = requests.get(url, timeout=10)
+
+        if response.status_code != 200:
+            return None
+
+        if "text/html" not in response.headers.get("Content-Type", ""):
+            return None
+
         return response.text
     except:
         print(f"[WARNING] Failed to fetch: {url}")
@@ -132,6 +150,8 @@ if __name__ == "__main__":
     wiki_url = "https://en.wikipedia.org/wiki/Artificial_intelligence"
 
     passages = process_wikipedia_article(wiki_url)
+
+    print(passages[:5])
 
     # Save to file
     with open("passages.txt", "w", encoding="utf-8") as f:
