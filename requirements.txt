@@ -10,3 +10,4 @@ SQLAlchemy==2.0.22
 sentence-transformers==2.7.0
 ftfy==6.2.3
 faiss-cpu>=1.8.0
+acronym-expander==0.1.1
