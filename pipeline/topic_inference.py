@@ -5,6 +5,7 @@
 import re
 from collections import Counter
 
+from utils.text_normalization import normalize_text
 from .vector_index import cosine_similarity, embed_text
 
 
@@ -84,11 +85,12 @@ STOPWORDS = {
 
 
 def _tokenize(text):
-    return re.findall(r"[a-zA-Z][a-zA-Z\-]{2,}", text.lower())
+    normalized = normalize_text(text)
+    return re.findall(r"[a-zA-Z][a-zA-Z\-]{2,}", normalized)
 
 
 def _normalize_candidate(candidate):
-    normalized = candidate.strip().lower()
+    normalized = normalize_text(candidate)
     if normalized == "ai":
         return "artificial intelligence"
     if normalized == "ml":

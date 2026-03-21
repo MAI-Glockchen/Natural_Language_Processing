@@ -50,7 +50,10 @@ def run_demo():
     for i, hit in enumerate(top_hits, start=1):
         print(f"\nHit {i}")
         print(f"  passage_id: {hit['passage_id']}")
-        print(f"  score: {hit['score']:.4f}")
+        print(
+            "  similarity_query_to_passage_score: "
+            f"{hit['similarity_query_to_passage_score']:.4f}"
+        )
         print(f"  text: {hit['text']}")
 
 
