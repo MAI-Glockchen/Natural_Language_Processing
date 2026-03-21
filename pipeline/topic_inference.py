@@ -10,7 +10,7 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn.preprocessing import normalize as sk_normalize
 
 from utils.text_normalization import normalize_text
-from .vector_index import embed_text
+from .vector_index import batch_embed, embed_text
 
 
 STOPWORDS: frozenset[str] = frozenset(
@@ -168,6 +168,10 @@ CONCEPT_CLUSTER_THRESHOLD: float = 0.55
 # (catches plurals, word-order variants, etc.) before embeddings are computed.
 SURFACE_DEDUP_THRESHOLD: float = 88.0
 
+# Maximum number of candidate phrases passed to the embedding model.
+# Raised from 120 to handle articles with many passages without losing signal.
+MAX_CANDIDATES: int = 300
+
 _NER_PATTERN = re.compile(
     r"\b(?:"
     r"[A-Z]{2,}(?:\s+[A-Z]{2,})*"
@@ -230,26 +234,29 @@ def _surface_deduplicate(phrase_scores: Counter) -> Counter:
 def _build_embedding_cache(
     candidates: list[str],
     passages: list[str],
-) -> tuple[dict[str, np.ndarray], np.ndarray]:
+) -> tuple[dict[str, np.ndarray], np.ndarray, np.ndarray]:
     """
     Embed all candidates and passages in one pass and return:
-      - cache: {label: unit-vector} for every candidate
-      - centroid: mean unit-vector across all passage embeddings
+      - cache:         {label: unit-vector} for every candidate
+      - centroid:      mean unit-vector across all passage embeddings
+      - passage_vecs:  (N, D) float32 array of passage embeddings, returned so
+                       the caller can pass them to the vector index without
+                       re-embedding
     """
-    candidate_vecs = np.array([embed_text(c) for c in candidates], dtype=np.float32)
+    candidate_vecs = batch_embed(candidates)
     candidate_vecs = sk_normalize(candidate_vecs, norm="l2")
     cache = {label: candidate_vecs[i] for i, label in enumerate(candidates)}
 
-    passage_vecs = np.array(
-        [embed_text(p) for p in passages if p.strip()], dtype=np.float32
-    )
+    passage_vecs = batch_embed([p for p in passages if p.strip()])
+    passage_vecs = sk_normalize(passage_vecs, norm="l2")
+
     centroid = (
         sk_normalize(passage_vecs.mean(axis=0, keepdims=True), norm="l2")[0]
         if len(passage_vecs) > 0
         else np.zeros(candidate_vecs.shape[1], dtype=np.float32)
     )
 
-    return cache, centroid
+    return cache, centroid, passage_vecs
 
 
 def _cluster_into_concepts(
@@ -267,7 +274,7 @@ def _cluster_into_concepts(
     if len(candidates) == 1:
         return [(candidates[0], phrase_scores[candidates[0]])]
 
-    mat = np.stack([emb_cache[c] for c in candidates])  # already normalised
+    mat = np.stack([emb_cache[c] for c in candidates])
 
     clustering = AgglomerativeClustering(
         n_clusters=None,
@@ -352,6 +359,7 @@ def infer_topic(
     position_decay: float = 0.85,
     concept_cluster_threshold: float = CONCEPT_CLUSTER_THRESHOLD,
     mmr_diversity: float = 0.4,
+    return_passage_embeddings: bool = False,
 ) -> dict[str, Any]:
     """
     Infer the main topic(s) from a list of text passages.
@@ -359,6 +367,35 @@ def infer_topic(
     Semantically equivalent phrases (e.g. "machine learning" and "artificial
     intelligence") are merged into a single concept cluster so their frequency
     evidence is combined rather than split across competing candidates.
+
+    Args:
+        passages: Text passages in reading order. Earlier passages are weighted
+            more heavily via position_decay.
+        top_k: Number of topic candidates to return.
+        unigram_weight: Score multiplier for single-word candidates.
+        bigram_weight: Score multiplier for two-word phrases.
+        trigram_weight: Score multiplier for three-word phrases.
+        entity_weight: Score bonus for named entities (proper nouns, acronyms).
+        semantic_weight: Weight of similarity-to-corpus-centroid in final score.
+        frequency_weight: Weight of normalised phrase frequency in final score.
+        position_decay: Multiplicative weight decay per passage position.
+            0.85 means passage 1 is worth 85% of passage 0, etc.
+        concept_cluster_threshold: Cosine similarity cutoff for merging two
+            phrases into the same concept. 0.55 merges domain synonyms like
+            "ML" and "AI"; raise toward 0.8 for stricter separation.
+        mmr_diversity: Balance between relevance and diversity in the returned
+            candidate list. 0 = ranked by score only, 1 = maximally diverse.
+        return_passage_embeddings: If True, include the passage embedding matrix
+            in the returned dict under the key "passage_embeddings" (shape N x D,
+            float32, L2-normalised). Use this to avoid re-embedding when building
+            a PassageVectorIndex immediately after calling infer_topic.
+
+    Returns:
+        {
+            "topic": str,
+            "candidates": list[tuple[str, float]],
+            "passage_embeddings": np.ndarray  # only present if return_passage_embeddings=True
+        }
     """
     unigram_counts: Counter = Counter()
     bigram_counts: Counter = Counter()
@@ -397,16 +434,19 @@ def infer_topic(
         phrase_scores[entity] += count * entity_weight
 
     if not phrase_scores:
-        return {"topic": "unknown topic", "candidates": []}
+        result: dict[str, Any] = {"topic": "unknown topic", "candidates": []}
+        if return_passage_embeddings:
+            result["passage_embeddings"] = np.empty((0,), dtype=np.float32)
+        return result
 
     phrase_scores = _surface_deduplicate(phrase_scores)
 
-    # Limit candidates before embedding — the most expensive step.
-    top_candidates: Counter = Counter(dict(phrase_scores.most_common(120)))
+    top_candidates: Counter = Counter(dict(phrase_scores.most_common(MAX_CANDIDATES)))
     candidate_labels = list(top_candidates.keys())
 
-    # Single embedding pass for all candidates and passages.
-    emb_cache, centroid = _build_embedding_cache(candidate_labels, passages)
+    emb_cache, centroid, passage_vecs = _build_embedding_cache(
+        candidate_labels, passages
+    )
 
     clustered = _cluster_into_concepts(
         top_candidates, emb_cache, threshold=concept_cluster_threshold
@@ -416,16 +456,18 @@ def infer_topic(
     final_scores: Counter = Counter()
     for label, raw_score in clustered:
         norm_freq = raw_score / max_raw
-        sem_score = float(emb_cache[label] @ centroid)  # both already unit-normalised
+        sem_score = float(emb_cache[label] @ centroid)
         final_scores[label] = frequency_weight * norm_freq + semantic_weight * sem_score
 
     pre_mmr = final_scores.most_common(max(top_k * 4, 20))
-
-    # MMR needs embeddings for the post-cluster representative labels only.
     mmr_cache = {label: emb_cache[label] for label, _ in pre_mmr if label in emb_cache}
     candidates = _mmr_rerank(pre_mmr, mmr_cache, top_k=top_k, diversity=mmr_diversity)
-
     candidates = _deduplicate_substrings(candidates)[:top_k]
-    best_topic = candidates[0][0] if candidates else "unknown topic"
 
-    return {"topic": best_topic, "candidates": candidates}
+    best_topic = candidates[0][0] if candidates else "unknown topic"
+    result = {"topic": best_topic, "candidates": candidates}
+
+    if return_passage_embeddings:
+        result["passage_embeddings"] = passage_vecs
+
+    return result

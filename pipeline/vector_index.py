@@ -71,16 +71,17 @@ def embed_text(
     return _fallback_embed(normalized, dim)
 
 
-def _batch_embed(
+def batch_embed(
     texts: list[str],
-    dim: int,
-    model_name: str,
-    use_fallback: bool,
+    dim: int = 256,
+    model_name: str = DEFAULT_EMBEDDING_MODEL,
+    use_fallback: bool = True,
 ) -> "np.ndarray":
     """
     Embed a list of strings and return an (N, D) float32 numpy array.
-    Uses SentenceTransformer batch encoding when available, which is
-    significantly faster than calling embed_text in a loop.
+
+    Uses SentenceTransformer batch encoding when available, which is much
+    faster than calling embed_text in a loop for large passage sets.
     """
     normalised = [normalize_text(t) for t in texts]
 
@@ -149,10 +150,34 @@ class PassageVectorIndex:
             return
 
         texts = [p["text"] for p in passages]
-        vectors = _batch_embed(texts, self.dim, self.model_name, self.use_fallback)
+        vectors = batch_embed(texts, self.dim, self.model_name, self.use_fallback)
+        self._store(passages, vectors)
 
+    def add_many_precomputed(
+        self,
+        passages: list[dict],
+        vectors: "np.ndarray",
+    ) -> None:
+        """
+        Index passages using embeddings that have already been computed elsewhere
+        (e.g. by infer_topic), avoiding a redundant embedding pass.
+
+        Args:
+            passages: [{"passage_id": str | int, "text": str}, ...]
+            vectors: Float32 array of shape (N, D), one row per passage,
+                     L2-normalised. Must match the order of passages.
+        """
+        if not passages:
+            return
+        if len(passages) != len(vectors):
+            raise ValueError(
+                f"passages ({len(passages)}) and vectors ({len(vectors)}) must have the same length."
+            )
+        self._store(passages, vectors)
+
+    def _store(self, passages: list[dict], vectors: "np.ndarray") -> None:
+        """Append rows and update the FAISS index from a pre-computed vector array."""
         self._init_faiss(vectors.shape[1])
-
         for p, vec in zip(passages, vectors):
             self._rows.append(
                 {
@@ -161,7 +186,6 @@ class PassageVectorIndex:
                     "vector": vec.tolist(),
                 }
             )
-
         if self._faiss_index is not None:
             self._faiss_index.add(vectors)
 
