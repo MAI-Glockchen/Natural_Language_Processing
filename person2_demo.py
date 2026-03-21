@@ -44,6 +44,7 @@ def run_demo():
     index = PassageVectorIndex(dim=256)
     index.add_many(passages)
     print(f"Indexed passages: {len(passages)}")
+    print(f"Index backend: {index.get_index_backend()}")
 
     print("\n[STEP 3] Retrieve relevant passages using inferred topic")
     top_hits = index.search(query=result["topic"], top_k=3)

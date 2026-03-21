@@ -7,6 +7,16 @@ import math
 import re
 
 try:
+    import numpy as np
+except Exception:
+    np = None
+
+try:
+    import faiss
+except Exception:
+    faiss = None
+
+try:
     from sentence_transformers import SentenceTransformer
 except Exception:
     SentenceTransformer = None
@@ -91,19 +101,41 @@ class PassageVectorIndex:
         self.model_name = model_name
         self.use_fallback = use_fallback
         self._rows = []
+        self._faiss_index = None
+
+    def _can_use_faiss(self):
+        return faiss is not None and np is not None
+
+    def _ensure_faiss_index(self, vector_len):
+        if self._faiss_index is None and self._can_use_faiss():
+            # IndexFlatIP performs inner-product search. With normalized vectors,
+            # this is equivalent to cosine similarity.
+            self._faiss_index = faiss.IndexFlatIP(vector_len)
+
+    def _vector_to_faiss_row(self, vector):
+        return np.asarray([vector], dtype="float32")
+
+    def get_index_backend(self):
+        return "faiss" if self._faiss_index is not None else "brute_force"
 
     def add_passage(self, passage_id, text):
+        vector = embed_text(
+            text,
+            dim=self.dim,
+            model_name=self.model_name,
+            use_fallback=self.use_fallback,
+        )
+
         row = {
             "passage_id": passage_id,
             "text": text,
-            "vector": embed_text(
-                text,
-                dim=self.dim,
-                model_name=self.model_name,
-                use_fallback=self.use_fallback,
-            ),
+            "vector": vector,
         }
         self._rows.append(row)
+
+        self._ensure_faiss_index(len(vector))
+        if self._faiss_index is not None:
+            self._faiss_index.add(self._vector_to_faiss_row(vector))
 
     def add_many(self, passages):
         """
@@ -114,12 +146,35 @@ class PassageVectorIndex:
             self.add_passage(p["passage_id"], p["text"])
 
     def search(self, query, top_k=5):
+        if not self._rows:
+            return []
+
+        k = max(top_k, 1)
         q_vec = embed_text(
             query,
             dim=self.dim,
             model_name=self.model_name,
             use_fallback=self.use_fallback,
         )
+
+        if self._faiss_index is not None:
+            scores, indices = self._faiss_index.search(
+                self._vector_to_faiss_row(q_vec), k
+            )
+            results = []
+            for score, idx in zip(scores[0], indices[0]):
+                if idx < 0:
+                    continue
+                row = self._rows[int(idx)]
+                results.append(
+                    {
+                        "passage_id": row["passage_id"],
+                        "text": row["text"],
+                        "similarity_query_to_passage_score": float(score),
+                    }
+                )
+            return results
+
         scored = []
 
         for row in self._rows:
@@ -133,4 +188,4 @@ class PassageVectorIndex:
             )
 
         scored.sort(key=lambda x: x["similarity_query_to_passage_score"], reverse=True)
-        return scored[: max(top_k, 1)]
+        return scored[:k]
