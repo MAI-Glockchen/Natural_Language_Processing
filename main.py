@@ -4,7 +4,8 @@
 
 import time
 from utils.nltk_setup import *
-from pipeline import extract_citations, fetch_document, clean_html, create_passages, save_passages_to_db
+from pipeline import (extract_citations, fetch_document, clean_html, create_passages,
+                      save_passages_to_db, collect_valid_articles, process_and_save_articles)
 
 def process_wikipedia_article(wikipedia_url, max_docs=20):
     """
@@ -26,7 +27,11 @@ def process_wikipedia_article(wikipedia_url, max_docs=20):
         time.sleep(1)  # Prevent IP blocking
     print("[INFO] Processing complete.")
 
+
+
 if __name__ == "__main__":
-    wiki_url = "https://en.wikipedia.org/wiki/Artificial_intelligence"
-    process_wikipedia_article(wiki_url)
-    print("[DONE] All passages stored in PostgreSQL")
+    # Step 1: collect 420 valid English Wikipedia articles
+    article_urls = collect_valid_articles(target_count=420)
+
+    # Step 2: process and save articles + citations + passages into DB
+    process_and_save_articles(article_urls)
