@@ -1,40 +1,47 @@
 services:
-  db:
+  postgres:
     image: postgres:18.3
-    container_name: wiki_pipeline_db
-    restart: always
+    container_name: citation-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: wiki_db
+      POSTGRES_DB: ${POSTGRES_DB:-wiki}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - pgdata:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql
+      - ./infra/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    command: >-
+      postgres
+      -c shared_buffers=512MB
+      -c effective_cache_size=1536MB
+      -c work_mem=32MB
+      -c maintenance_work_mem=128MB
+      -c wal_compression=on
+      -c synchronous_commit=off
+      -c max_wal_size=2GB
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d wiki_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-wiki}"]
       interval: 1.5s
       timeout: 3s
       retries: 8
-      start_period: 10s
 
-  app:
+  pipeline:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: wiki_pipeline_app
-    restart: always
-    environment:
-      DB_URL: postgresql+psycopg2://user:password@db:5432/wiki_db
-      RATE_LIMIT_DELAY: "1.0"
-      MAX_WORKERS: "4"
+    container_name: citation-pipeline
     depends_on:
-      db:
+      postgres:
         condition: service_healthy
-    volumes:
-      - ./cache:/app/cache
-      - ./pipeline.log:/app/pipeline.log
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DSN: ${POSTGRES_DSN:-dbname=wiki user=postgres password=postgres host=postgres port=5432}
+    command: ["python", "main.py"]
+    restart: "no"
 
 volumes:
-  pgdata:
-  cache:
+  postgres_data:

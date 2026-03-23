@@ -1,35 +1,15 @@
-# -----------------------------
-# Global configuration for the pipeline
-# -----------------------------
+from __future__ import annotations
 import os
-from pathlib import Path
 
-# PostgreSQL connection URL
-DB_URL = os.getenv("DB_URL", "postgresql+psycopg2://user:password@localhost:5432/wiki_db")
-
-# User-Agent for web requests to avoid blocking by websites
-USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/114.0.0.0 Safari/537.36"
-)
-
-# Rate limiting configuration
-RATE_LIMIT_DELAY = float(os.getenv("RATE_LIMIT_DELAY", "1.0"))  # seconds between requests
-
-# Retry configuration
-MAX_RETRIES = int(os.getenv("MAX_RETRIES", "3"))
-RETRY_BACKOFF = float(os.getenv("RETRY_BACKOFF", "1.0"))  # seconds
-
-# Caching configuration
-CACHE_DIR = Path(os.getenv("CACHE_DIR", "./cache"))
-CACHE_TTL = int(os.getenv("CACHE_TTL", "3600"))  # seconds
-
-# Parallel processing configuration
-MAX_WORKERS = int(os.getenv("MAX_WORKERS", "4"))
-
-# Passage creation configuration
-MAX_SENTENCES_PER_PASSAGE = int(os.getenv("MAX_SENTENCES_PER_PASSAGE", "3"))
-
-# Minimum text length for valid content
-MIN_TEXT_LENGTH = int(os.getenv("MIN_TEXT_LENGTH", "200"))
+DSN = os.getenv('POSTGRES_DSN', 'dbname=wiki user=postgres password=postgres host=localhost port=5432')
+USER_AGENT = os.getenv('USER_AGENT', 'citation-pipeline/1.0')
+MAX_ARTICLES = int(os.getenv('MAX_ARTICLES', '25'))
+MIN_CITATIONS = int(os.getenv('MIN_CITATIONS', '20'))
+MAX_CITATIONS_PER_ARTICLE = int(os.getenv('MAX_CITATIONS_PER_ARTICLE', '180'))
+WORKERS = int(os.getenv('WORKERS', '32'))
+HTTP_TIMEOUT = float(os.getenv('HTTP_TIMEOUT', '7'))
+CHUNK_WORDS = int(os.getenv('CHUNK_WORDS', '180'))
+CHUNK_OVERLAP = int(os.getenv('CHUNK_OVERLAP', '35'))
+MAX_DOC_CHARS = int(os.getenv('MAX_DOC_CHARS', '400000'))
+LANG = os.getenv('WIKI_LANG', 'en')
+POPULAR_URL = f'https://{LANG}.wikipedia.org/wiki/Special:MostVisitedPages?offset=0&limit={MAX_ARTICLES}'
