@@ -62,8 +62,15 @@ def embed_text(
     normalized = normalize_text(text)
 
     if SentenceTransformer is not None:
-        vec = _get_model(model_name).encode(normalized, normalize_embeddings=True)
-        return vec.tolist() if hasattr(vec, "tolist") else list(vec)
+        try:
+            vec = _get_model(model_name).encode(normalized, normalize_embeddings=True)
+            return vec.tolist() if hasattr(vec, "tolist") else list(vec)
+        except Exception as exc:
+            if not use_fallback:
+                raise
+            print(
+                f"[WARNING] sentence-transformers failed for embed_text ({exc}); using fallback embedding."
+            )
 
     if not use_fallback:
         raise ImportError("sentence-transformers is required (use_fallback=False).")
@@ -86,13 +93,20 @@ def batch_embed(
     normalised = [normalize_text(t) for t in texts]
 
     if SentenceTransformer is not None:
-        vecs = _get_model(model_name).encode(
-            normalised,
-            normalize_embeddings=True,
-            batch_size=64,
-            show_progress_bar=False,
-        )
-        return np.array(vecs, dtype="float32")
+        try:
+            vecs = _get_model(model_name).encode(
+                normalised,
+                normalize_embeddings=True,
+                batch_size=64,
+                show_progress_bar=False,
+            )
+            return np.array(vecs, dtype="float32")
+        except Exception as exc:
+            if not use_fallback:
+                raise
+            print(
+                f"[WARNING] sentence-transformers failed for batch_embed ({exc}); using fallback embeddings."
+            )
 
     if not use_fallback:
         raise ImportError("sentence-transformers is required (use_fallback=False).")
