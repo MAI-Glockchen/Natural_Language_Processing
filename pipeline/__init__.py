@@ -8,6 +8,9 @@ from .document_fetching import fetch_document
 from .passage_creation import create_passages
 from .topic_inference import infer_topic
 from .vector_index import PassageVectorIndex
+from .article_collection import collect_valid_articles
+from .topic_vector_pipeline import TopicVectorPipeline
+from .mock_articles import MOCK_ARTICLES
 
 
 def _missing_dependency_factory(feature_name, install_hint):
