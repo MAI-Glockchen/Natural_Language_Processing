@@ -87,7 +87,7 @@ def get_popular_articles(limit: int = 25) -> List[Dict[str, str]]:
     return result
 
 
-def extract_citations(article_url: str, max_citations: int = 80) -> List[Dict[str, str]]:
+def extract_citations(article_url: str, max_citations: int = 180) -> List[Dict[str, str]]:
     with requests.Session() as s:
         s.headers.update({"User-Agent": "citation-pipeline/0.1 (research project)"})
         html = _get_text(s, article_url)

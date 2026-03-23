@@ -1,15 +1,35 @@
 from __future__ import annotations
+
 import os
 
-DSN = os.getenv('POSTGRES_DSN', 'dbname=wiki user=postgres password=postgres host=localhost port=5432')
-USER_AGENT = os.getenv('USER_AGENT', 'citation-pipeline/1.0')
-MAX_ARTICLES = int(os.getenv('MAX_ARTICLES', '25'))
-MIN_CITATIONS = int(os.getenv('MIN_CITATIONS', '20'))
-MAX_CITATIONS_PER_ARTICLE = int(os.getenv('MAX_CITATIONS_PER_ARTICLE', '180'))
-WORKERS = int(os.getenv('WORKERS', '32'))
-HTTP_TIMEOUT = float(os.getenv('HTTP_TIMEOUT', '7'))
-CHUNK_WORDS = int(os.getenv('CHUNK_WORDS', '180'))
-CHUNK_OVERLAP = int(os.getenv('CHUNK_OVERLAP', '35'))
-MAX_DOC_CHARS = int(os.getenv('MAX_DOC_CHARS', '400000'))
-LANG = os.getenv('WIKI_LANG', 'en')
-POPULAR_URL = f'https://{LANG}.wikipedia.org/wiki/Special:MostVisitedPages?offset=0&limit={MAX_ARTICLES}'
+
+def _env_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None or value == "":
+        return default
+    return int(value)
+
+
+def _env_float(name: str, default: float) -> float:
+    value = os.getenv(name)
+    if value is None or value == "":
+        return default
+    return float(value)
+
+
+POSTGRES_DSN = os.getenv(
+    "POSTGRES_DSN",
+    "dbname=wiki user=postgres password=postgres host=localhost port=5432",
+)
+
+MAX_ARTICLES = _env_int("MAX_ARTICLES", 25)
+MIN_CITATIONS = _env_int("MIN_CITATIONS", 20)
+MAX_CITATIONS_PER_ARTICLE = _env_int("MAX_CITATIONS_PER_ARTICLE", 180)
+
+WORKERS = _env_int("WORKERS", 32)
+REQUEST_TIMEOUT = (_env_float("CONNECT_TIMEOUT", 3.0), _env_float("READ_TIMEOUT", 8.0))
+
+USER_AGENT = os.getenv(
+    "USER_AGENT",
+    "citation-pipeline/0.1 (+https://example.invalid; research project)",
+)
