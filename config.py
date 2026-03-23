@@ -29,6 +29,12 @@ MAX_CITATIONS_PER_ARTICLE = _env_int("MAX_CITATIONS_PER_ARTICLE", 180)
 WORKERS = _env_int("WORKERS", 32)
 REQUEST_TIMEOUT = (_env_float("CONNECT_TIMEOUT", 3.0), _env_float("READ_TIMEOUT", 8.0))
 
+PASSAGE_TARGET_WORDS = _env_int("PASSAGE_TARGET_WORDS", 100)
+PASSAGE_MAX_WORDS = _env_int("PASSAGE_MAX_WORDS", 140)
+PASSAGE_MIN_WORDS = _env_int("PASSAGE_MIN_WORDS", 60)
+
+POPULAR_ARTICLES_FILE = os.getenv("POPULAR_ARTICLES_FILE", "popular_articles_2025.txt")
+
 USER_AGENT = os.getenv(
     "USER_AGENT",
     "citation-pipeline/0.1 (+https://example.invalid; research project)",

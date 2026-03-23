@@ -5,8 +5,11 @@ import re
 from bs4 import BeautifulSoup
 from readability import Document
 
+from config import PASSAGE_MAX_WORDS, PASSAGE_MIN_WORDS, PASSAGE_TARGET_WORDS
+
 
 _WS_RE = re.compile(r"\s+")
+_SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
 _WORD_RE = re.compile(r"\S+")
 
 
@@ -16,6 +19,10 @@ def _strip_nul(text: str) -> str:
 
 def _normalize_ws(text: str) -> str:
     return _WS_RE.sub(" ", text).strip()
+
+
+def _word_count(text: str) -> int:
+    return len(_WORD_RE.findall(text))
 
 
 def clean_html(html: str) -> str:
@@ -44,27 +51,63 @@ def clean_html(html: str) -> str:
     return text
 
 
-def make_passages(text: str, target_words: int = 180, overlap_words: int = 30) -> list[tuple[int, str, int]]:
-    words = text.split()
-    if not words:
+def _split_sentences(text: str) -> list[str]:
+    text = _normalize_ws(text)
+    if not text:
         return []
 
-    step = max(1, target_words - overlap_words)
-    out: list[tuple[int, str, int]] = []
-
-    idx = 0
-    start = 0
-    n = len(words)
-
-    while start < n:
-        chunk = words[start:start + target_words]
-        if not chunk:
-            break
-        passage = " ".join(chunk).strip()
-        wc = len(chunk)
-        if wc >= 40:
-            out.append((idx, passage, wc))
-            idx += 1
-        start += step
-
+    parts = _SENTENCE_RE.split(text)
+    out = []
+    for part in parts:
+        s = _normalize_ws(part)
+        if s:
+            out.append(s)
     return out
+
+
+def make_passages(
+    text: str,
+    target_words: int = PASSAGE_TARGET_WORDS,
+    max_words: int = PASSAGE_MAX_WORDS,
+    min_words: int = PASSAGE_MIN_WORDS,
+) -> list[tuple[int, str, int]]:
+    sentences = _split_sentences(text)
+    if not sentences:
+        return []
+
+    passages: list[tuple[int, str, int]] = []
+    current: list[str] = []
+    current_wc = 0
+    idx = 0
+
+    for sentence in sentences:
+        sent_wc = _word_count(sentence)
+        if sent_wc == 0:
+            continue
+
+        if current and current_wc >= target_words:
+            passage = " ".join(current).strip()
+            if current_wc >= min_words:
+                passages.append((idx, passage, current_wc))
+                idx += 1
+            current = [sentence]
+            current_wc = sent_wc
+            continue
+
+        if current and current_wc + sent_wc > max_words:
+            passage = " ".join(current).strip()
+            if current_wc >= min_words:
+                passages.append((idx, passage, current_wc))
+                idx += 1
+            current = [sentence]
+            current_wc = sent_wc
+            continue
+
+        current.append(sentence)
+        current_wc += sent_wc
+
+    if current and current_wc >= min_words:
+        passage = " ".join(current).strip()
+        passages.append((idx, passage, current_wc))
+
+    return passages

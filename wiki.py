@@ -1,18 +1,19 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Dict, List
 from urllib.parse import quote, urljoin, urlparse
 
 import requests
 from bs4 import BeautifulSoup
 
-WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
-
-
-def _get_json(session: requests.Session, url: str, *, params: dict | None = None) -> dict:
-    r = session.get(url, params=params, timeout=(5, 20))
-    r.raise_for_status()
-    return r.json()
+from config import (
+    MAX_ARTICLES,
+    MAX_CITATIONS_PER_ARTICLE,
+    MIN_CITATIONS,
+    POPULAR_ARTICLES_FILE,
+    USER_AGENT,
+)
 
 
 def _get_text(session: requests.Session, url: str) -> str:
@@ -43,53 +44,63 @@ def _is_valid_citation_url(url: str) -> bool:
     return True
 
 
-def get_popular_articles(limit: int = 25) -> List[Dict[str, str]]:
-    limit = max(1, min(limit, 50))
+def _is_useful_title(title: str) -> bool:
+    if not title:
+        return False
 
-    with requests.Session() as s:
-        s.headers.update(
-            {
-                "User-Agent": "citation-pipeline/0.1 (research project)",
-                "Accept": "application/json",
-            }
+    bad_prefixes = ("Special:", "Wikipedia:", "Template:", "Help:", "Category:", "Portal:", "File:")
+    if title.startswith(bad_prefixes):
+        return False
+    if title == "Main Page":
+        return False
+    return True
+
+
+def _title_to_url(title: str) -> str:
+    normalized = _normalize_title(title)
+    return f"https://en.wikipedia.org/wiki/{quote(normalized.replace(' ', '_'))}"
+
+
+def _load_titles_from_file(path: str) -> list[str]:
+    p = Path(path)
+    if not p.exists():
+        raise FileNotFoundError(
+            f"Popular article file not found: {path}. "
+            f"Create it with one article title per line."
         )
 
-        data = _get_json(
-            s,
-            WIKIPEDIA_API,
-            params={
-                "action": "query",
-                "format": "json",
-                "formatversion": "2",
-                "list": "mostviewed",
-                "pvimlimit": limit,
-            },
-        )
+    out: list[str] = []
+    seen: set[str] = set()
 
-    items = data.get("query", {}).get("mostviewed", [])
-    result: List[Dict[str, str]] = []
-
-    for item in items:
-        title = item.get("title")
-        if not title:
+    for line in p.read_text(encoding="utf-8").splitlines():
+        title = _normalize_title(line)
+        if not _is_useful_title(title):
             continue
-        if title.startswith(("Special:", "Wikipedia:")) or title == "Main Page":
+        if title in seen:
             continue
+        seen.add(title)
+        out.append(title)
 
-        normalized = _normalize_title(title)
+    return out
+
+
+def get_popular_articles(limit: int = MAX_ARTICLES) -> List[Dict[str, str]]:
+    titles = _load_titles_from_file(POPULAR_ARTICLES_FILE)
+
+    result: list[dict[str, str]] = []
+    for title in titles[:limit]:
         result.append(
             {
-                "title": normalized,
-                "url": f"https://en.wikipedia.org/wiki/{quote(normalized.replace(' ', '_'))}",
+                "title": title,
+                "url": _title_to_url(title),
             }
         )
-
     return result
 
 
-def extract_citations(article_url: str, max_citations: int = 180) -> List[Dict[str, str]]:
+def extract_citations(article_url: str, max_citations: int = MAX_CITATIONS_PER_ARTICLE) -> List[Dict[str, str]]:
     with requests.Session() as s:
-        s.headers.update({"User-Agent": "citation-pipeline/0.1 (research project)"})
+        s.headers.update({"User-Agent": USER_AGENT})
         html = _get_text(s, article_url)
 
     soup = BeautifulSoup(html, "lxml")
@@ -99,7 +110,8 @@ def extract_citations(article_url: str, max_citations: int = 180) -> List[Dict[s
     citations: List[Dict[str, str]] = []
 
     for ref in refs:
-        for a in ref.select("a[href]") if hasattr(ref, "select") else []:
+        links = ref.select("a[href]") if hasattr(ref, "select") else []
+        for a in links:
             href = a.get("href")
             if not href:
                 continue
@@ -120,5 +132,8 @@ def extract_citations(article_url: str, max_citations: int = 180) -> List[Dict[s
 
             if len(citations) >= max_citations:
                 return citations
+
+    if len(citations) < MIN_CITATIONS:
+        return []
 
     return citations
