@@ -6,7 +6,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from typing import Generator, Optional
 import logging
-from sqlalchemy import create_engine, event, text, func
+from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker, scoped_session, Session
 from sqlalchemy.pool import QueuePool
 from config import DB_URL
@@ -33,26 +33,24 @@ engine = create_engine(
 def init_db() -> None:
     """
     Initialize database tables if they don't exist.
-    
+
     This should be called once at application startup.
     """
     logger.info("Initializing database tables...")
-    with engine.connect() as conn:
-        Base.metadata.create_all(bind=conn)
-        logger.info("Database tables initialized successfully")
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables initialized successfully")
 
 
 # Drop all tables (for development/testing)
 def drop_db() -> None:
     """
     Drop all database tables.
-    
+
     WARNING: This will delete all data! Use only for development/testing.
     """
     logger.warning("Dropping all database tables...")
-    with engine.connect() as conn:
-        Base.metadata.drop_all(bind=conn)
-        logger.info("Database tables dropped successfully")
+    Base.metadata.drop_all(bind=engine)
+    logger.info("Database tables dropped successfully")
 
 
 # Create session factory with scoped sessions for thread safety
@@ -70,9 +68,9 @@ SessionLocal = scoped_session(
 def get_session() -> Generator[Session, None, None]:
     """
     Get a database session with automatic cleanup.
-    
+
     This is a context manager that ensures proper session lifecycle.
-    
+
     Yields:
         Session: Database session
     """
@@ -85,16 +83,16 @@ def get_session() -> Generator[Session, None, None]:
         session.rollback()
         raise
     finally:
-        session.close()
+        SessionLocal.remove()
 
 
 @contextmanager
 def get_session_no_commit() -> Generator[Session, None, None]:
     """
     Get a database session without automatic commit.
-    
+
     Use this when you want manual control over commits.
-    
+
     Yields:
         Session: Database session
     """
@@ -106,7 +104,7 @@ def get_session_no_commit() -> Generator[Session, None, None]:
         session.rollback()
         raise
     finally:
-        session.close()
+        SessionLocal.remove()
 
 
 def close_session(session: Session) -> None:
@@ -119,21 +117,25 @@ def close_session(session: Session) -> None:
     session.close()
 
 
-# Event listener for cleanup on session close
-@event.listens_for(SessionLocal, "close")
-def remove_session(session):
-    session.remove()
+def get_db_session() -> Session:
+    """
+    Get a raw database session.
+
+    Returns:
+        Session: Database session
+    """
+    return SessionLocal()
 
 
 # Utility functions for common database operations
 def get_or_create_article(url: str, title: Optional[str] = None) -> Article:
     """
     Get an article by URL or create it if it doesn't exist.
-    
+
     Args:
         url: Article URL
         title: Article title (optional)
-    
+
     Returns:
         Article: The article object
     """
@@ -142,17 +144,18 @@ def get_or_create_article(url: str, title: Optional[str] = None) -> Article:
         if not article:
             article = Article(url=url, title=title)
             session.add(article)
+            session.flush()
         return article
 
 
 def get_or_create_citation(url: str, title: Optional[str] = None) -> Citation:
     """
     Get a citation by URL or create it if it doesn't exist.
-    
+
     Args:
         url: Citation URL
         title: Citation title (optional)
-    
+
     Returns:
         Citation: The citation object
     """
@@ -161,16 +164,17 @@ def get_or_create_citation(url: str, title: Optional[str] = None) -> Citation:
         if not citation:
             citation = Citation(url=url, title=title)
             session.add(citation)
+            session.flush()
         return citation
 
 
 def get_article_by_id(article_id: int) -> Optional[Article]:
     """
     Get an article by its ID.
-    
+
     Args:
         article_id: Article ID
-    
+
     Returns:
         Article or None if not found
     """
@@ -181,10 +185,10 @@ def get_article_by_id(article_id: int) -> Optional[Article]:
 def get_citation_by_id(citation_id: int) -> Optional[Citation]:
     """
     Get a citation by its ID.
-    
+
     Args:
         citation_id: Citation ID
-    
+
     Returns:
         Citation or None if not found
     """
@@ -195,10 +199,10 @@ def get_citation_by_id(citation_id: int) -> Optional[Citation]:
 def get_passages_by_citation_id(citation_id: int) -> list[CitationPassage]:
     """
     Get all passages for a citation.
-    
+
     Args:
         citation_id: Citation ID
-    
+
     Returns:
         List of passages
     """
@@ -209,10 +213,10 @@ def get_passages_by_citation_id(citation_id: int) -> list[CitationPassage]:
 def get_passages_by_content_pattern(pattern: str) -> list[CitationPassage]:
     """
     Get passages matching a content pattern.
-    
+
     Args:
         pattern: Search pattern (SQL LIKE)
-    
+
     Returns:
         List of matching passages
     """
@@ -225,43 +229,43 @@ def get_passages_by_content_pattern(pattern: str) -> list[CitationPassage]:
 def count_articles() -> int:
     """
     Get the total number of articles.
-    
+
     Returns:
         Number of articles
     """
     with get_session() as session:
-        return session.query(func.count(Article.article_id)).scalar()
+        return session.query(func.count(Article.article_id)).scalar() or 0
 
 
 def count_citations() -> int:
     """
     Get the total number of citations.
-    
+
     Returns:
         Number of citations
     """
     with get_session() as session:
-        return session.query(func.count(Citation.citation_id)).scalar()
+        return session.query(func.count(Citation.citation_id)).scalar() or 0
 
 
 def count_passages() -> int:
     """
     Get the total number of passages.
-    
+
     Returns:
         Number of passages
     """
     with get_session() as session:
-        return session.query(func.count(CitationPassage.passage_id)).scalar()
+        return session.query(func.count(CitationPassage.passage_id)).scalar() or 0
 
 
 def get_article_citations(article_id: int) -> list[Citation]:
     """
     Get all citations for an article.
-    
+
     Args:
         article_id: Article ID
-    
+
     Returns:
         List of citations
     """
@@ -277,10 +281,10 @@ def get_article_citations(article_id: int) -> list[Citation]:
 def get_citation_articles(citation_id: int) -> list[Article]:
     """
     Get all articles that cite a document.
-    
+
     Args:
         citation_id: Citation ID
-    
+
     Returns:
         List of articles
     """
@@ -296,7 +300,7 @@ def get_citation_articles(citation_id: int) -> list[Article]:
 def get_statistics() -> dict:
     """
     Get database statistics.
-    
+
     Returns:
         Dictionary with counts for articles, citations, and passages
     """
