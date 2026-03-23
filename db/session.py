@@ -16,3 +16,8 @@ Base.metadata.create_all(engine)
 # Create session factory
 Session = sessionmaker(bind=engine)
 session = Session()
+
+
+def get_session():
+    """Return a new SQLAlchemy session instance."""
+    return Session()

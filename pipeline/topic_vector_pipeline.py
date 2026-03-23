@@ -16,7 +16,7 @@ except Exception:
     faiss = None
 
 from db.session import get_session
-from db.models import Article, CitationPassage
+from db.models import Article, CitationPassage, ArticleTopicOutput, FaissPassageMap
 from .topic_inference import infer_topic
 from .vector_index import PassageVectorIndex
 
@@ -39,6 +39,7 @@ class TopicVectorPipeline:
         batch_size: int = 10,
         min_passages: int = 5,
         use_db: bool = True,
+        persist_outputs_to_db: bool = True,
     ):
         """
         Initialize pipeline.
@@ -48,6 +49,8 @@ class TopicVectorPipeline:
             batch_size: Number of articles to process per batch
             min_passages: Minimum passages required to process an article
             use_db: If False, skip DB session and use process_mock_articles()
+            persist_outputs_to_db: Persist topic output and FAISS passage mapping
+                to dedicated DB tables.
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -56,6 +59,12 @@ class TopicVectorPipeline:
         self.min_passages = min_passages
         self.session = get_session() if use_db else None
         self.use_db = use_db
+        self.persist_outputs_to_db = persist_outputs_to_db
+        self.output_session = (
+            self.session
+            if self.session is not None
+            else (get_session() if persist_outputs_to_db else None)
+        )
 
         # Tracking
         self.results = {
@@ -105,6 +114,101 @@ class TopicVectorPipeline:
             "passage_data": passage_data,
         }
 
+    def _get_or_create_article_row(
+        self, article_data: Dict[str, Any]
+    ) -> Optional[Article]:
+        if self.output_session is None:
+            return None
+
+        article_url = article_data.get("article_url", "")
+        article_title = article_data.get("article_title", "")
+        if not article_url:
+            return None
+
+        article_row = (
+            self.output_session.query(Article)
+            .filter(Article.url == article_url)
+            .one_or_none()
+        )
+        if article_row is None:
+            article_row = Article(url=article_url, title=article_title)
+            self.output_session.add(article_row)
+            self.output_session.flush()
+        elif article_title and article_row.title != article_title:
+            article_row.title = article_title
+
+        return article_row
+
+    def _persist_outputs(
+        self,
+        article_data: Dict[str, Any],
+        metadata: Dict[str, Any],
+        passage_data: List[Dict[str, Any]],
+    ) -> None:
+        if not self.persist_outputs_to_db or self.output_session is None:
+            return
+
+        try:
+            article_row = self._get_or_create_article_row(article_data)
+            if article_row is None:
+                return
+
+            topic_row = (
+                self.output_session.query(ArticleTopicOutput)
+                .filter(ArticleTopicOutput.article_id == article_row.article_id)
+                .one_or_none()
+            )
+            candidates_json = json.dumps(
+                [
+                    (label, float(score))
+                    for label, score in metadata.get("candidates", [])
+                ]
+            )
+
+            if topic_row is None:
+                topic_row = ArticleTopicOutput(
+                    article_id=article_row.article_id,
+                    topic=metadata.get("topic", "unknown topic"),
+                    candidates_json=candidates_json,
+                    index_file=metadata.get("index_file", ""),
+                    index_backend=metadata.get("index_backend", ""),
+                    embedding_dim=metadata.get("embedding_dim", 0),
+                )
+                self.output_session.add(topic_row)
+            else:
+                topic_row.topic = metadata.get("topic", "unknown topic")
+                topic_row.candidates_json = candidates_json
+                topic_row.index_file = metadata.get("index_file", "")
+                topic_row.index_backend = metadata.get("index_backend", "")
+                topic_row.embedding_dim = metadata.get("embedding_dim", 0)
+
+            (
+                self.output_session.query(FaissPassageMap)
+                .filter(FaissPassageMap.article_id == article_row.article_id)
+                .filter(FaissPassageMap.index_file == metadata.get("index_file", ""))
+                .delete(synchronize_session=False)
+            )
+
+            for row_id, p in enumerate(passage_data):
+                if not p.get("text"):
+                    continue
+                self.output_session.add(
+                    FaissPassageMap(
+                        article_id=article_row.article_id,
+                        faiss_row_id=row_id,
+                        index_file=metadata.get("index_file", ""),
+                        passage_key=str(p.get("passage_id", "")),
+                        passage_text=p.get("text", ""),
+                        citation_url=p.get("citation_url", ""),
+                        citation_title=p.get("citation_title", ""),
+                    )
+                )
+
+            self.output_session.commit()
+        except Exception as e:
+            self.output_session.rollback()
+            print(f"[WARNING] Failed to persist topic/mapping outputs: {e}")
+
     def _process_article_payload(
         self,
         article_data: Dict[str, Any],
@@ -142,7 +246,9 @@ class TopicVectorPipeline:
 
             title_hints = [article_data.get("article_title", "")]
             title_hints.extend(
-                p.get("citation_title", "") for p in passage_data if p.get("citation_title")
+                p.get("citation_title", "")
+                for p in passage_data
+                if p.get("citation_title")
             )
 
             infer_kwargs = infer_topic_kwargs or {}
@@ -191,6 +297,12 @@ class TopicVectorPipeline:
                 "index_backend": index.get_index_backend(),
                 "embedding_dim": embedding_dim,
             }
+
+            self._persist_outputs(
+                article_data=article_data,
+                metadata=metadata,
+                passage_data=passage_data,
+            )
 
             self.results["articles"].append(metadata)
             self.results["processed"] += 1

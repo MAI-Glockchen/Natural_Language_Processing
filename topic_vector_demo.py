@@ -18,6 +18,7 @@ def main():
         batch_size=5,
         min_passages=5,
         use_db=False,
+        persist_outputs_to_db=False,
     )
 
     # Process hardcoded mock articles with the same payload shape as DB-derived data

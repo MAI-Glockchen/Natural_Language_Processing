@@ -9,3 +9,5 @@ from .document_cleaning import clean_html
 from .passage_creation import create_passages
 from .db_saving import save_passages_to_db
 from .article_collection import collect_valid_articles
+from .topic_vector_pipeline import TopicVectorPipeline
+from .mock_articles import MOCK_ARTICLES
