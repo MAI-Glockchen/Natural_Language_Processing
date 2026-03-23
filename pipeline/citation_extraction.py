@@ -2,11 +2,17 @@
 # Extracts all citations from a Wikipedia article
 # -----------------------------
 
+import logging
+import re
+from typing import List, Set
 from bs4 import BeautifulSoup
 import requests
-from config import USER_AGENT
+from config import USER_AGENT, MAX_RETRIES, RETRY_BACKOFF
 
-def extract_citations(wikipedia_url):
+logger = logging.getLogger(__name__)
+
+
+def extract_citations(wikipedia_url: str) -> List[str]:
     """
     Extract all citation URLs from a Wikipedia article robustly.
 
@@ -16,23 +22,33 @@ def extract_citations(wikipedia_url):
     - Web archives
     - Only returns HTTP/HTTPS URLs
 
-    Returns:
-        List[str]: List of citation URLs
-    """
+    Args:
+        wikipedia_url: URL of the Wikipedia article
 
-    print(f"[INFO] Extracting citations from: {wikipedia_url}")
+    Returns:
+        List[str]: List of unique citation URLs
+    """
+    logger.info(f"Extracting citations from: {wikipedia_url}")
 
     headers = {"User-Agent": USER_AGENT}
 
-    try:
-        response = requests.get(wikipedia_url, headers=headers, timeout=10)
-        response.raise_for_status()
-    except requests.RequestException as e:
-        print(f"[ERROR] Failed to fetch Wikipedia page: {e}")
-        return []
+    for attempt in range(MAX_RETRIES):
+        try:
+            response = requests.get(wikipedia_url, headers=headers, timeout=30)
+            response.raise_for_status()
+            break
+        except requests.RequestException as e:
+            logger.warning(f"Attempt {attempt + 1}/{MAX_RETRIES} failed: {e}")
+            if attempt < MAX_RETRIES - 1:
+                logger.info(f"Retrying in {RETRY_BACKOFF * (attempt + 1)} seconds...")
+                import time
+                time.sleep(RETRY_BACKOFF * (attempt + 1))
+            else:
+                logger.error(f"Failed to fetch Wikipedia page after {MAX_RETRIES} attempts: {e}")
+                return []
 
     soup = BeautifulSoup(response.text, "html.parser")
-    citations = set()
+    citations: Set[str] = set()
 
     # All <li> with id starting 'cite_note'
     for li in soup.find_all("li", id=lambda x: x and x.startswith("cite_note")):
@@ -41,7 +57,9 @@ def extract_citations(wikipedia_url):
 
         # Find all <a href> recursively inside <cite>
         for link in cite.find_all("a", href=True):
-            url = link['href']
+            url = link.get("href")
+            if not url:
+                continue
 
             # Handle relative URLs
             if url.startswith("//"):
@@ -53,5 +71,41 @@ def extract_citations(wikipedia_url):
             if url.startswith("http"):
                 citations.add(url)
 
-    print(f"[INFO] Found {len(citations)} reference structures in the html code")
+    logger.info(f"Found {len(citations)} reference structures in the HTML code")
     return list(citations)
+
+
+def validate_citation_url(url: str) -> bool:
+    """
+    Validate if a URL is a valid citation URL.
+
+    Args:
+        url: URL to validate
+
+    Returns:
+        bool: True if valid, False otherwise
+    """
+    # Filter out Wikipedia internal links
+    if "en.wikipedia.org" in url and not url.endswith("/wiki/"):
+        return True
+
+    # Filter out obvious non-content URLs
+    blocked_patterns = [
+        r"\.wikipedia\.org/wiki/Special:",
+        r"\.wikipedia\.org/wiki/Help:",
+        r"\.wikipedia\.org/wiki/Talk:",
+        r"\.wikipedia\.org/wiki/User:",
+        r"\.wikipedia\.org/wiki/Wikipedia:",
+        r"\.wikipedia\.org/wiki/Portal:",
+        r"\.wikipedia\.org/wiki/File:",
+        r"\.wikipedia\.org/wiki/Category:",
+        r"\.wikipedia\.org/wiki/Template:",
+        r"\.wikipedia\.org/wiki/Category_tree:",
+        r"\.wikipedia\.org/wiki/Template_talk:",
+    ]
+
+    for pattern in blocked_patterns:
+        if re.search(pattern, url):
+            return False
+
+    return True
