@@ -14,5 +14,23 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wiki_pipeline_app
+    restart: always
+    environment:
+      DB_URL: postgresql+psycopg2://user:password@db:5432/wiki_db
+      RATE_LIMIT_DELAY: "1.0"
+      MAX_WORKERS: "4"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./cache:/app/cache
+      - ./pipeline.log:/app/pipeline.log
+
 volumes:
   pgdata:
+  cache:
