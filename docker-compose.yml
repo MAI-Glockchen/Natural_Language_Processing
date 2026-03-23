@@ -1,8 +1,6 @@
-version: '3.9'
-
 services:
   db:
-    image: postgres:16
+    image: postgres:18.3
     container_name: wiki_pipeline_db
     restart: always
     environment:
@@ -12,7 +10,13 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d wiki_db"]
+      interval: 1.5s
+      timeout: 3s
+      retries: 8
+      start_period: 10s
 
   app:
     build:
