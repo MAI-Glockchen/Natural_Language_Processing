@@ -126,6 +126,78 @@ STOPWORDS: frozenset[str] = frozenset(
         "only",
         "even",
         "now",
+        "when",
+        "where",
+        "which",
+        "whose",
+        "whom",
+        "via",
+        "across",
+        "through",
+        "throughout",
+        "often",
+        "frequently",
+        "typically",
+        "mainly",
+        "mostly",
+        "approximately",
+        "various",
+        "several",
+    }
+)
+
+LOW_SIGNAL_BOUNDARY_TOKENS: frozenset[str] = frozenset(
+    {
+        "when",
+        "where",
+        "which",
+        "while",
+        "during",
+        "after",
+        "before",
+        "through",
+        "across",
+        "within",
+        "without",
+        "into",
+        "from",
+        "than",
+        "because",
+        "since",
+    }
+)
+
+LOW_SIGNAL_ACTION_TOKENS: frozenset[str] = frozenset(
+    {
+        "use",
+        "used",
+        "using",
+        "based",
+        "combines",
+        "combine",
+        "includes",
+        "include",
+        "supports",
+        "support",
+        "improved",
+        "improves",
+        "requires",
+        "require",
+    }
+)
+
+GENERIC_SINGLE_TOKENS: frozenset[str] = frozenset(
+    {
+        "index",
+        "model",
+        "models",
+        "system",
+        "systems",
+        "data",
+        "method",
+        "methods",
+        "approach",
+        "approaches",
     }
 )
 
@@ -191,6 +263,35 @@ def _content_tokens(tokens: list[str]) -> list[str]:
 
 def _normalize_candidate(text: str) -> str:
     return normalize_text(text).strip()
+
+
+def _is_informative_candidate(candidate: str) -> bool:
+    """Heuristic filter to remove low-information phrase fragments."""
+    tokens = [t for t in candidate.split() if t]
+    if not tokens:
+        return False
+
+    if tokens[0] in LOW_SIGNAL_BOUNDARY_TOKENS:
+        return False
+    if tokens[-1] in LOW_SIGNAL_BOUNDARY_TOKENS:
+        return False
+
+    if len(tokens) == 1:
+        tok = tokens[0]
+        if tok in STOPWORDS or tok in GENERIC_SINGLE_TOKENS:
+            return False
+        if len(tok) < 4:
+            return False
+
+    action_count = sum(1 for t in tokens if t in LOW_SIGNAL_ACTION_TOKENS)
+    if len(tokens) >= 3 and action_count >= 1:
+        return False
+
+    # Prefer noun-like keyphrases over clause fragments.
+    if len(tokens) >= 3 and any(t in STOPWORDS for t in tokens):
+        return False
+
+    return True
 
 
 def _extract_named_entities(passages: list[str]) -> Counter:
@@ -349,6 +450,7 @@ def _deduplicate_substrings(
 
 def infer_topic(
     passages: list[str],
+    title_hints: list[str] | None = None,
     top_k: int = 5,
     unigram_weight: float = 1.0,
     bigram_weight: float = 2.0,
@@ -359,6 +461,7 @@ def infer_topic(
     position_decay: float = 0.85,
     concept_cluster_threshold: float = CONCEPT_CLUSTER_THRESHOLD,
     mmr_diversity: float = 0.4,
+    title_hint_weight: float = 2.5,
     return_passage_embeddings: bool = False,
 ) -> dict[str, Any]:
     """
@@ -371,6 +474,8 @@ def infer_topic(
     Args:
         passages: Text passages in reading order. Earlier passages are weighted
             more heavily via position_decay.
+        title_hints: Optional article/citation titles to anchor candidate topics
+            toward canonical noun phrases.
         top_k: Number of topic candidates to return.
         unigram_weight: Score multiplier for single-word candidates.
         bigram_weight: Score multiplier for two-word phrases.
@@ -385,6 +490,8 @@ def infer_topic(
             "ML" and "AI"; raise toward 0.8 for stricter separation.
         mmr_diversity: Balance between relevance and diversity in the returned
             candidate list. 0 = ranked by score only, 1 = maximally diverse.
+        title_hint_weight: Score multiplier for candidates originating from
+            title_hints (article title and citation titles).
         return_passage_embeddings: If True, include the passage embedding matrix
             in the returned dict under the key "passage_embeddings" (shape N x D,
             float32, L2-normalised). Use this to avoid re-embedding when building
@@ -432,6 +539,40 @@ def infer_topic(
 
     for entity, count in _extract_named_entities(passages).items():
         phrase_scores[entity] += count * entity_weight
+
+    if title_hints:
+        for title in title_hints:
+            norm_title = _normalize_candidate(title)
+            if not norm_title:
+                continue
+
+            # Full title gets a strong boost to preserve canonical topic names.
+            if _is_informative_candidate(norm_title):
+                phrase_scores[norm_title] += title_hint_weight * entity_weight
+
+            title_tokens = _content_tokens(_tokenize(norm_title))
+            for t in title_tokens:
+                norm = _normalize_candidate(t)
+                if norm and _is_informative_candidate(norm):
+                    phrase_scores[norm] += title_hint_weight * unigram_weight
+
+            for w1, w2 in zip(title_tokens, title_tokens[1:]):
+                phrase = _normalize_candidate(f"{w1} {w2}")
+                if phrase and _is_informative_candidate(phrase):
+                    phrase_scores[phrase] += title_hint_weight * bigram_weight
+
+            for w1, w2, w3 in zip(title_tokens, title_tokens[1:], title_tokens[2:]):
+                phrase = _normalize_candidate(f"{w1} {w2} {w3}")
+                if phrase and _is_informative_candidate(phrase):
+                    phrase_scores[phrase] += title_hint_weight * trigram_weight
+
+    phrase_scores = Counter(
+        {
+            phrase: score
+            for phrase, score in phrase_scores.items()
+            if _is_informative_candidate(phrase)
+        }
+    )
 
     if not phrase_scores:
         result: dict[str, Any] = {"topic": "unknown topic", "candidates": []}
