@@ -80,7 +80,7 @@ def process_single_citation(
             )
 
         # Step 4: Save to database
-        success = save_passages_to_db(wikipedia_url, passages, citation_url)
+        success, _ = save_passages_to_db(wikipedia_url, passages, citation_url)
 
         if success:
             return PipelineResult(
@@ -226,3 +226,60 @@ def process_wikipedia_article(
             success=False,
             error="No valid passages generated"
         )
+
+
+def process_wikipedia_article_batch(
+    wikipedia_url: str,
+    citations: List[str],
+    max_docs: int = 50,
+    max_workers: int = MAX_WORKERS,
+    use_fast_save: bool = True
+) -> Tuple[List[PipelineResult], int]:
+    """
+    Process all citations for a Wikipedia article with batch saving.
+
+    Args:
+        wikipedia_url: URL of the Wikipedia article
+        citations: List of citation URLs
+        max_docs: Maximum number of citations to process
+        max_workers: Maximum parallel workers
+        use_fast_save: Use bulk insert for better performance
+
+    Returns:
+        Tuple[List[PipelineResult], int]: Results and total passages saved
+    """
+    from pipeline.db_saving import save_passages_batch_fast as save_batch
+    
+    # Filter and limit citations
+    valid_citations = [
+        url for url in citations[:max_docs]
+        if validate_citation_url(url)
+    ]
+
+    logger.info(f"Processing {len(valid_citations)} citations for {wikipedia_url}")
+
+    results: List[PipelineResult] = []
+    total_passages = 0
+
+    # Process citations in parallel
+    with __import__('concurrent.futures').ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all tasks
+        futures = {
+            executor.submit(process_single_citation, url, wikipedia_url): url
+            for url in valid_citations
+        }
+
+        # Collect results
+        for future in __import__('concurrent.futures').as_completed(futures):
+            url = futures[future]
+            result = future.result()
+            results.append(result)
+
+            if result.success:
+                total_passages += len(result.passages)
+                logger.debug(f"Completed: {url} - {len(result.passages)} passages")
+            else:
+                logger.warning(f"Failed: {url} - {result.error}")
+
+    logger.info(f"Processed {len(results)} citations for {wikipedia_url} - {total_passages} passages total")
+    return results, total_passages

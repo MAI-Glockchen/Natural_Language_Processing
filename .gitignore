@@ -1,6 +1,10 @@
+# Latex
 **/proposal*.fdb_latexmk
 **/proposal*.log
 **/proposal*.synctex.gz
 **/proposal*.aux
 **/proposal*.fls
 **/proposal*.out
+
+# Python cache
+**__pycache__**
