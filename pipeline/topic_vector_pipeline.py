@@ -140,9 +140,15 @@ class TopicVectorPipeline:
                 self.results["skipped"] += 1
                 return None
 
+            title_hints = [article_data.get("article_title", "")]
+            title_hints.extend(
+                p.get("citation_title", "") for p in passage_data if p.get("citation_title")
+            )
+
             infer_kwargs = infer_topic_kwargs or {}
             topic_result = infer_topic(
                 passages=passages_text,
+                title_hints=title_hints,
                 return_passage_embeddings=True,
                 **infer_kwargs,
             )
