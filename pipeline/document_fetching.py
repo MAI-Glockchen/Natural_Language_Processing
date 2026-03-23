@@ -16,8 +16,10 @@ def fetch_document(url):
         print(f"[INFO] Fetching: {url}")
         response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=10)
         if response.status_code != 200:
+            print(f"[WARNING] Failed to fetch: {url} error code: {response.status_code}")
             return None
         if "text/html" not in response.headers.get("Content-Type", ""):
+            print(f"[WARNING] no htmlm")
             return None
         return response.text
     except:
