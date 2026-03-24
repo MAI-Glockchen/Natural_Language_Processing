@@ -4,11 +4,24 @@ from clean import clean_html, make_passages
 from db import init_db, insert_values
 from fetch import fetch_article_documents_until_threshold, source_host
 from util import sha256
-from wiki import extract_citations, get_popular_articles
+from wiki import extract_citations, get_popular_articles, remove_title_from_seed_file
 
 
 def _strip_nul(text: str) -> str:
     return (text or "").replace("\x00", "")
+
+
+def _drop_invalid_title(title: str) -> int:
+    removed = remove_title_from_seed_file(title)
+    print(f"removed invalid title from seed file: {title} | removed={removed}", flush=True)
+    return 1 if removed else 0
+
+
+def _format_status_counts(status_counts: dict[str, int]) -> str:
+    if not status_counts:
+        return "-"
+    parts = [f"{k}={v}" for k, v in sorted(status_counts.items())]
+    return ", ".join(parts)
 
 
 def run() -> dict[str, int]:
@@ -36,6 +49,7 @@ def run() -> dict[str, int]:
     citations_total = 0
     documents_total = 0
     passages_total = 0
+    seed_titles_removed = 0
 
     for i, a in enumerate(articles, start=1):
         print(f"extract citations {i}/{len(articles)}: {a['title']}", flush=True)
@@ -52,18 +66,20 @@ def run() -> dict[str, int]:
 
         if total == 0:
             print(f"drop article: {a['title']} (no citations)", flush=True)
+            seed_titles_removed += _drop_invalid_title(a["title"])
             continue
 
-        max_missing = total // 10
+        max_missing = total // 2
         urls = [c["url"] for c in raw_citations]
 
         print(
             f"fetch article docs: {a['title']} | total={total} allowed_missing={max_missing}",
             flush=True,
         )
-        docs, missing, aborted = fetch_article_documents_until_threshold(urls, max_missing)
+        docs, missing, aborted, status_counts = fetch_article_documents_until_threshold(urls, max_missing)
         print(
-            f"fetch result: {a['title']} | docs={len(docs)} missing={missing} aborted={aborted}",
+            f"fetch result: {a['title']} | docs={len(docs)} missing={missing} "
+            f"aborted={aborted} | statuses: {_format_status_counts(status_counts)}",
             flush=True,
         )
 
@@ -73,6 +89,7 @@ def run() -> dict[str, int]:
                 f"(missing={missing}, allowed={max_missing}, total={total})",
                 flush=True,
             )
+            seed_titles_removed += _drop_invalid_title(a["title"])
             continue
 
         available = {d.url for d in docs}
@@ -91,6 +108,7 @@ def run() -> dict[str, int]:
                 f"(available={len(available_citations)}, total={total}, required={total - max_missing})",
                 flush=True,
             )
+            seed_titles_removed += _drop_invalid_title(a["title"])
             continue
 
         qualified_articles += 1
@@ -200,4 +218,5 @@ def run() -> dict[str, int]:
         "citations_available": citations_total,
         "documents": documents_total,
         "passages": passages_total,
+        "seed_titles_removed": seed_titles_removed,
     }

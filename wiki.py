@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from threading import Lock
 from typing import Dict, List
 from urllib.parse import quote, urljoin, urlparse
 
@@ -15,9 +16,11 @@ from config import (
     USER_AGENT,
 )
 
+_SEED_FILE_LOCK = Lock()
+
 
 def _get_text(session: requests.Session, url: str) -> str:
-    r = session.get(url, timeout=(5, 20))
+    r = session.get(url, timeout=(7, 25))
     r.raise_for_status()
     return r.text
 
@@ -96,6 +99,41 @@ def get_popular_articles(limit: int = MAX_ARTICLES) -> List[Dict[str, str]]:
             }
         )
     return result
+
+
+def remove_title_from_seed_file(title: str, path: str = POPULAR_ARTICLES_FILE) -> bool:
+    normalized_target = _normalize_title(title)
+    if not normalized_target:
+        return False
+
+    p = Path(path)
+    if not p.exists():
+        return False
+
+    with _SEED_FILE_LOCK:
+        original_lines = p.read_text(encoding="utf-8").splitlines()
+        kept_lines: list[str] = []
+        removed = False
+
+        for line in original_lines:
+            raw = line.strip()
+            if not raw:
+                continue
+
+            normalized = _normalize_title(raw)
+            if normalized == normalized_target:
+                removed = True
+                continue
+
+            kept_lines.append(raw)
+
+        if not removed:
+            return False
+
+        tmp = p.with_suffix(p.suffix + ".tmp")
+        tmp.write_text("\n".join(kept_lines) + ("\n" if kept_lines else ""), encoding="utf-8")
+        tmp.replace(p)
+        return True
 
 
 def extract_citations(article_url: str, max_citations: int = MAX_CITATIONS_PER_ARTICLE) -> List[Dict[str, str]]:

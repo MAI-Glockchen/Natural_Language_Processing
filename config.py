@@ -22,12 +22,12 @@ POSTGRES_DSN = os.getenv(
     "dbname=wiki user=postgres password=postgres host=localhost port=5432",
 )
 
-MAX_ARTICLES = _env_int("MAX_ARTICLES", 25)
+MAX_ARTICLES = _env_int("MAX_ARTICLES", 2000)
 MIN_CITATIONS = _env_int("MIN_CITATIONS", 20)
 MAX_CITATIONS_PER_ARTICLE = _env_int("MAX_CITATIONS_PER_ARTICLE", 180)
 
-WORKERS = _env_int("WORKERS", 32)
-REQUEST_TIMEOUT = (_env_float("CONNECT_TIMEOUT", 3.0), _env_float("READ_TIMEOUT", 8.0))
+WORKERS = _env_int("WORKERS", 50)
+REQUEST_TIMEOUT = (_env_float("CONNECT_TIMEOUT", 6.0), _env_float("READ_TIMEOUT", 13.0))
 
 PASSAGE_TARGET_WORDS = _env_int("PASSAGE_TARGET_WORDS", 100)
 PASSAGE_MAX_WORDS = _env_int("PASSAGE_MAX_WORDS", 140)

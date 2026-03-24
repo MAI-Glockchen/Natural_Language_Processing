@@ -77,9 +77,15 @@ def insert_values(sql: str, rows: list[tuple], page_size: int = 500) -> list[tup
     if not rows:
         return []
 
+    out: list[tuple] = []
+
     with connect() as conn, conn.cursor() as cur:
-        execute_values(cur, sql, rows, page_size=page_size)
-        try:
-            return cur.fetchall()
-        except psycopg2.ProgrammingError:
-            return []
+        for start in range(0, len(rows), page_size):
+            batch = rows[start:start + page_size]
+            execute_values(cur, sql, batch, page_size=len(batch))
+            try:
+                out.extend(cur.fetchall())
+            except psycopg2.ProgrammingError:
+                pass
+
+    return out
