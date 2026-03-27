@@ -28,32 +28,5 @@ docker compose down -v
 
 ## Backup and Restore
 
-The backup and restore tools are located in the `backup-tools/` directory.
-
-To backup the PostgreSQL database:
-
-```bash
-cd backup-tools
-python backup_restore.py backup
-```
-
-To restore from a backup:
-
-```bash
-# Restore the latest backup
-cd backup-tools
-python backup_restore.py restore latest
-
-# Restore a specific version
-cd backup-tools
-python backup_restore.py restore 2.01
-```
-
-To list available backups:
-
-```bash
-cd backup-tools
-python backup_restore.py list
-```
-
-Other developers should start with a backed-up database using the restore command.
+Developers should start with a backed-up database using the restore command.
+For more information, see `db-backup-tools\README.md`

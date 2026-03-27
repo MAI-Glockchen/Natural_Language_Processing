@@ -5,7 +5,6 @@ This directory contains the backup and restore utility for the PostgreSQL databa
 ## Prerequisites
 
 - Docker container `citation-postgres` must be running
-- The `wiki` schema must exist in the container
 
 ## Usage
 
