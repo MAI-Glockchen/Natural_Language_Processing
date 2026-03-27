@@ -1,38 +1,32 @@
-# Natural_Language_Processing
-All collaborative efforts for "Natural Language Processing" (Semester 2)
+## Useful commands
 
-> **Python version:** 3.10 is required for this project.
-
-This project extracts citations from Wikipedia articles, collects the referenced sources, cleans the text, and stores the passages in a **PostgreSQL database**.  
-It serves as a foundation for later projects such as **Retrieval-Augmented Generation (RAG)** or Wikipedia article reconstruction.
-
----
-
-# Installation
-1. Activate the virtual environment
-
+Start only Postgres:
 ```bash
-# Windows
-.\venv\Scripts\activate
-# Linux/macOS
-source venv/bin/activate
+docker compose up -d postgres
 ```
 
-2. Install dependencies:
+Open psql:
 ```bash
-pip install -r requirements.txt
+docker compose exec postgres psql -U postgres -d wiki
 ```
 
-3. Prepare PostgreSQL:
-
+Stop everything:
 ```bash
-docker compose up -d
-```
-If you don’t have Docker Desktop, make sure Docker Engine is installed and accessible via your terminal/WSL.
-
-# Running the Pipeline
-```bash
-python main.py
+docker compose down
 ```
 
+Delete DB volume too:
+```bash
+docker compose down -v
+```
 
+## Notes
+
+- `.env` controls both container settings and pipeline tuning.
+- The app uses `host=postgres` inside Docker.
+- For local Python execution outside Docker, change `POSTGRES_DSN` host to `localhost`.
+
+## Backup and Restore
+
+Developers should start with a backed-up database using the restore command.
+For more information, see `db-backup-tools\README.md`

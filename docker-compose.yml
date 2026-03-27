@@ -1,18 +1,67 @@
-version: '3.9'
-
 services:
-  db:
-    image: postgres:16
-    container_name: wiki_pipeline_db
-    restart: always
+  postgres:
+    image: postgres:18.3
+    container_name: citation-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: wiki_db
+      POSTGRES_DB: ${POSTGRES_DB:-wiki}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
+      - ./infra/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    command: >-
+      postgres -c shared_buffers=512MB -c effective_cache_size=1536MB -c work_mem=32MB -c maintenance_work_mem=128MB -c wal_compression=on -c synchronous_commit=off -c max_wal_size=2GB
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-wiki}" ]
+      interval: 1.5s
+      timeout: 3s
+      retries: 8
+
+#####################################################
+# Developers: Please make your own container, with  #
+# your own entrypoint for your task. If you need    #
+# new dependencies, just add them via "uv". The     #
+# Dockerfile will include those dependencies        #
+# automatically. You dont need a new Dockerfile.    #
+#####################################################
+
+# main_01:
+#   build:
+#     context: .
+#     dockerfile: Dockerfile
+#   container_name: main_01
+#   entrypoint: [ "python", "main_01.py" ]
+#   depends_on:
+#     - postgres
+#   environment:
+#     - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-wiki}
+
+# main_02:
+#   build:
+#     context: .
+#     dockerfile: Dockerfile
+#   container_name: main_02
+#   entrypoint: [ "python", "main_02.py" ]
+#   depends_on:
+#     - postgres
+#   environment:
+#     - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-wiki}
+
+# main_03:
+#   build:
+#     context: .
+#     dockerfile: Dockerfile
+#   container_name: main_03
+#   entrypoint: [ "python", "main_03.py" ]
+#   depends_on:
+#     - postgres
+#   environment:
+#     - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-wiki}
 
 volumes:
-  pgdata:
+  postgres_data:
+
