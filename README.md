@@ -1,27 +1,8 @@
-# Citation pipeline infra
-
-## Start
-
-```bash
-cp .env.example .env
-./run.sh
-```
-
-This will:
-1. start a Postgres 18.3 container
-2. wait until Postgres is healthy
-3. run the Python pipeline container once
-
 ## Useful commands
 
 Start only Postgres:
 ```bash
 docker compose up -d postgres
-```
-
-Run pipeline against running Postgres:
-```bash
-docker compose run --rm pipeline
 ```
 
 Open psql:
@@ -47,22 +28,32 @@ docker compose down -v
 
 ## Backup and Restore
 
+The backup and restore tools are located in the `backup-tools/` directory.
+
 To backup the PostgreSQL database:
 
 ```bash
+cd backup-tools
 python backup_restore.py backup
 ```
 
-To restore from a backup file:
+To restore from a backup:
 
 ```bash
-python backup_restore.py restore backup_file.dump
+# Restore the latest backup
+cd backup-tools
+python backup_restore.py restore latest
+
+# Restore a specific version
+cd backup-tools
+python backup_restore.py restore 2.01
 ```
 
-To restore and drop existing database first:
+To list available backups:
 
 ```bash
-python backup_restore.py restore backup_file.dump --drop-existing
+cd backup-tools
+python backup_restore.py list
 ```
 
 Other developers should start with a backed-up database using the restore command.
