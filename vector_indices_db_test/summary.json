@@ -1,7 +1,616 @@
 {
-  "processed": 0,
-  "skipped": 1,
+  "processed": 20,
+  "skipped": 0,
   "failed": 0,
-  "timestamp": "2026-03-28T15:15:21.823570",
-  "articles": []
+  "timestamp": "2026-03-28T15:29:28.947225",
+  "articles": [
+    {
+      "article_url": "db://real-runner/article-1",
+      "article_title": "DB real article 1",
+      "topic": "artificial intelligence",
+      "candidates": [
+        [
+          "artificial intelligence",
+          1.0
+        ],
+        [
+          "db real citation 1-1",
+          0.37251389026641846
+        ],
+        [
+          "what thought chatgpt",
+          0.3829321563243866
+        ],
+        [
+          "teradata global",
+          0.2543565034866333
+        ],
+        [
+          "chris hillman",
+          0.25466927886009216
+        ]
+      ],
+      "num_passages": 5,
+      "index_file": "0_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "db://real-runner/article-2",
+      "article_title": "DB real article 2",
+      "topic": "artificial intelligence",
+      "candidates": [
+        [
+          "artificial intelligence",
+          1.0
+        ],
+        [
+          "db real citation 2-1",
+          0.183479443192482
+        ],
+        [
+          "gpt- openai previously",
+          0.030756020918488503
+        ],
+        [
+          "capability overhang",
+          0.02098751999437809
+        ],
+        [
+          "stable diffusion",
+          0.007265717256814241
+        ]
+      ],
+      "num_passages": 5,
+      "index_file": "1_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "db://real-runner/article-3",
+      "article_title": "DB real article 3",
+      "topic": "chatgpt",
+      "candidates": [
+        [
+          "chatgpt",
+          1.0
+        ],
+        [
+          "openai",
+          0.5240499973297119
+        ],
+        [
+          "db real citation 3-1",
+          0.33357733488082886
+        ],
+        [
+          "plug-ins allow bot",
+          0.23550882935523987
+        ],
+        [
+          "artificial intelligence",
+          0.20022276043891907
+        ]
+      ],
+      "num_passages": 5,
+      "index_file": "2_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "db://real-runner/article-4",
+      "article_title": "DB real article 4",
+      "topic": "chatgpt",
+      "candidates": [
+        [
+          "chatgpt",
+          1.0
+        ],
+        [
+          "old conversations you",
+          0.5513401627540588
+        ],
+        [
+          "db real citation 4-1",
+          0.2708969712257385
+        ],
+        [
+          "save openai ceo",
+          0.17005902528762817
+        ],
+        [
+          "memory",
+          0.3127400875091553
+        ]
+      ],
+      "num_passages": 5,
+      "index_file": "3_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "db://real-runner/article-5",
+      "article_title": "DB real article 5",
+      "topic": "jailbreaking lot",
+      "candidates": [
+        [
+          "jailbreaking lot",
+          1.0
+        ],
+        [
+          "db real citation 5-1",
+          0.7383689880371094
+        ],
+        [
+          "safety problems",
+          0.29446136951446533
+        ],
+        [
+          "model say something",
+          0.13877062499523163
+        ]
+      ],
+      "num_passages": 5,
+      "index_file": "4_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "db://real-runner/article-6",
+      "article_title": "DB real article 6",
+      "topic": "language models",
+      "candidates": [
+        [
+          "language models",
+          1.0
+        ],
+        [
+          "words probabilities come",
+          0.7661654949188232
+        ],
+        [
+          "n-grams",
+          0.5409812331199646
+        ],
+        [
+          "sequence words",
+          0.6605708599090576
+        ],
+        [
+          "db real citation 6-1",
+          0.3468007445335388
+        ]
+      ],
+      "num_passages": 5,
+      "index_file": "5_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "db://real-runner/article-7",
+      "article_title": "DB real article 7",
+      "topic": "artificial intelligence",
+      "candidates": [
+        [
+          "artificial intelligence",
+          1.0
+        ],
+        [
+          "language models",
+          0.721403181552887
+        ],
+        [
+          "db real citation 7-1",
+          0.3991929590702057
+        ],
+        [
+          "transformers",
+          0.40273517370224
+        ],
+        [
+          "training",
+          0.325946569442749
+        ]
+      ],
+      "num_passages": 5,
+      "index_file": "6_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "db://real-runner/article-8",
+      "article_title": "DB real article 8",
+      "topic": "artificial intelligence",
+      "candidates": [
+        [
+          "artificial intelligence",
+          1.0
+        ],
+        [
+          "db real citation 8-1",
+          0.5953837633132935
+        ],
+        [
+          "machine learning gpt",
+          0.7325535416603088
+        ],
+        [
+          "frog",
+          0.2994649112224579
+        ],
+        [
+          "works online chatbot",
+          0.2439454197883606
+        ]
+      ],
+      "num_passages": 5,
+      "index_file": "7_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "db://real-runner/article-9",
+      "article_title": "DB real article 9",
+      "topic": "artificial intelligence",
+      "candidates": [
+        [
+          "artificial intelligence",
+          1.0
+        ],
+        [
+          "db real citation 9-1",
+          0.7136948704719543
+        ],
+        [
+          "gpt already extremely",
+          0.6213290691375732
+        ],
+        [
+          "likely incorrect chatbot",
+          0.38329797983169556
+        ]
+      ],
+      "num_passages": 5,
+      "index_file": "8_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "db://real-runner/article-10",
+      "article_title": "DB real article 10",
+      "topic": "sama",
+      "candidates": [
+        [
+          "sama",
+          1.0
+        ],
+        [
+          "openai",
+          0.755725622177124
+        ],
+        [
+          "db real citation 10-1",
+          0.46055564284324646
+        ],
+        [
+          "moderators",
+          0.4553581178188324
+        ],
+        [
+          "artificial intelligence",
+          0.29848670959472656
+        ]
+      ],
+      "num_passages": 5,
+      "index_file": "9_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "db://real-runner/article-11",
+      "article_title": "DB real article 11",
+      "topic": "kenyans",
+      "candidates": [
+        [
+          "kenyans",
+          1.0
+        ],
+        [
+          "db real citation 11-1",
+          0.5913397073745728
+        ],
+        [
+          "content severe grotesque",
+          0.2850058674812317
+        ],
+        [
+          "sama",
+          0.38694843649864197
+        ],
+        [
+          "pool multilingual workers",
+          0.18947440385818481
+        ]
+      ],
+      "num_passages": 5,
+      "index_file": "10_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "db://real-runner/article-12",
+      "article_title": "DB real article 12",
+      "topic": "kenya",
+      "candidates": [
+        [
+          "kenya",
+          1.0
+        ],
+        [
+          "db real citation 12-1",
+          0.6500284075737
+        ],
+        [
+          "content moderators",
+          0.6896395683288574
+        ],
+        [
+          "openai",
+          0.6664949059486389
+        ],
+        [
+          "dangerous technology work",
+          0.39121925830841064
+        ]
+      ],
+      "num_passages": 5,
+      "index_file": "11_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "db://real-runner/article-13",
+      "article_title": "DB real article 13",
+      "topic": "db real citation 13-1",
+      "candidates": [
+        [
+          "db real citation 13-1",
+          1.0
+        ],
+        [
+          "google",
+          0.9633463025093079
+        ],
+        [
+          "chatgpt",
+          0.6630587577819824
+        ],
+        [
+          "openai",
+          0.5638542771339417
+        ]
+      ],
+      "num_passages": 5,
+      "index_file": "12_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "db://real-runner/article-14",
+      "article_title": "DB real article 14",
+      "topic": "chatgpt",
+      "candidates": [
+        [
+          "chatgpt",
+          1.0
+        ],
+        [
+          "openai",
+          0.5822796821594238
+        ],
+        [
+          "db real citation 14-1",
+          0.382590651512146
+        ],
+        [
+          "apps",
+          0.3383169174194336
+        ],
+        [
+          "mini integration whatsapp",
+          0.2911157011985779
+        ]
+      ],
+      "num_passages": 5,
+      "index_file": "13_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "db://real-runner/article-15",
+      "article_title": "DB real article 15",
+      "topic": "chatgpt",
+      "candidates": [
+        [
+          "chatgpt",
+          1.0
+        ],
+        [
+          "db real citation 15-1",
+          0.20639429986476898
+        ],
+        [
+          "images",
+          0.154636412858963
+        ],
+        [
+          "pulse",
+          0.17490999400615692
+        ],
+        [
+          "gpt-",
+          0.4003549814224243
+        ]
+      ],
+      "num_passages": 5,
+      "index_file": "14_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "db://real-runner/article-16",
+      "article_title": "DB real article 16",
+      "topic": "voice",
+      "candidates": [
+        [
+          "voice",
+          1.0
+        ],
+        [
+          "chatgpt",
+          0.9384382963180542
+        ],
+        [
+          "db real citation 16-1",
+          0.4473026692867279
+        ],
+        [
+          "shopping",
+          0.2913395166397095
+        ],
+        [
+          "see conversation same",
+          0.3924463987350464
+        ]
+      ],
+      "num_passages": 5,
+      "index_file": "15_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "db://real-runner/article-17",
+      "article_title": "DB real article 17",
+      "topic": "gpt- pro",
+      "candidates": [
+        [
+          "gpt- pro",
+          1.0
+        ],
+        [
+          "chatgpt",
+          0.7126225829124451
+        ],
+        [
+          "instant checkout",
+          0.4027801752090454
+        ],
+        [
+          "db real citation 17-1",
+          0.21791568398475647
+        ],
+        [
+          "shopify merchants",
+          0.26617857813835144
+        ]
+      ],
+      "num_passages": 5,
+      "index_file": "16_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "db://real-runner/article-18",
+      "article_title": "DB real article 18",
+      "topic": "chatgpt",
+      "candidates": [
+        [
+          "chatgpt",
+          1.0
+        ],
+        [
+          "db real citation 18-1",
+          0.21502935886383057
+        ],
+        [
+          "october",
+          0.03208978846669197
+        ],
+        [
+          "free plan",
+          0.055677156895399094
+        ],
+        [
+          "android",
+          0.12516264617443085
+        ]
+      ],
+      "num_passages": 5,
+      "index_file": "17_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "db://real-runner/article-19",
+      "article_title": "DB real article 19",
+      "topic": "chatgpt",
+      "candidates": [
+        [
+          "chatgpt",
+          1.0
+        ],
+        [
+          "saved memories",
+          0.47133535146713257
+        ],
+        [
+          "users files collaborators",
+          0.4307306408882141
+        ],
+        [
+          "db real citation 19-1",
+          0.3566014766693115
+        ],
+        [
+          "project",
+          0.20376558601856232
+        ]
+      ],
+      "num_passages": 5,
+      "index_file": "18_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "db://real-runner/article-20",
+      "article_title": "DB real article 20",
+      "topic": "chatgpt",
+      "candidates": [
+        [
+          "chatgpt",
+          1.0
+        ],
+        [
+          "slack",
+          0.9038766622543335
+        ],
+        [
+          "db real citation 20-1",
+          0.15667840838432312
+        ],
+        [
+          "codex",
+          0.18714065849781036
+        ],
+        [
+          "app connector available",
+          0.11005771160125732
+        ]
+      ],
+      "num_passages": 5,
+      "index_file": "19_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    }
+  ]
 }
