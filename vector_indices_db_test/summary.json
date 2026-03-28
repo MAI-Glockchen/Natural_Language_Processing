@@ -1,0 +1,39 @@
+{
+  "processed": 1,
+  "skipped": 0,
+  "failed": 0,
+  "timestamp": "2026-03-28T14:19:55.136457",
+  "articles": [
+    {
+      "article_url": "db://passage-table-smoke-test",
+      "article_title": "DB passage table smoke test",
+      "topic": "artificial intelligence",
+      "candidates": [
+        [
+          "artificial intelligence",
+          1.0
+        ],
+        [
+          "what thought chatgpt",
+          0.38392016291618347
+        ],
+        [
+          "teradata global",
+          0.255550354719162
+        ],
+        [
+          "chris hillman",
+          0.25586262345314026
+        ],
+        [
+          "db passage table smoke test",
+          0.12166670709848404
+        ]
+      ],
+      "num_passages": 5,
+      "index_file": "0_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    }
+  ]
+}

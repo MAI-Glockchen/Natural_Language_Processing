@@ -1,0 +1,70 @@
+{
+  "processed": 2,
+  "skipped": 0,
+  "failed": 0,
+  "timestamp": "2026-03-23T14:04:17.833621",
+  "articles": [
+    {
+      "article_url": "https://en.wikipedia.org/wiki/Natural_language_processing",
+      "article_title": "Natural language processing",
+      "topic": "nlp evaluation",
+      "candidates": [
+        [
+          "nlp evaluation",
+          1.0
+        ],
+        [
+          "natural language processing",
+          0.968747615814209
+        ],
+        [
+          "named entity recognition",
+          0.8216005563735962
+        ],
+        [
+          "transformer models",
+          0.2140405923128128
+        ],
+        [
+          "text preprocessing",
+          0.3743952810764313
+        ]
+      ],
+      "num_passages": 6,
+      "index_file": "0_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "https://en.wikipedia.org/wiki/Vector_database",
+      "article_title": "Vector database",
+      "topic": "vector databases",
+      "candidates": [
+        [
+          "vector databases",
+          1.0
+        ],
+        [
+          "cosine similarity",
+          0.5057061314582825
+        ],
+        [
+          "hybrid retrieval",
+          0.6574978232383728
+        ],
+        [
+          "batch embedding",
+          0.5314561724662781
+        ],
+        [
+          "faiss documentation",
+          0.2556968331336975
+        ]
+      ],
+      "num_passages": 6,
+      "index_file": "1_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    }
+  ]
+}

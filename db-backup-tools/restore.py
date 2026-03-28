@@ -4,7 +4,8 @@
 from __future__ import annotations
 
 import re
-import shlex
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -23,11 +24,19 @@ from .core import get_backup_versions, run_command, get_database_version
 def run_maintenance_sql(sql: str) -> None:
     """Run SQL against the maintenance database."""
     cmd = [
-        "docker", "exec", "-i", DATABASE_CONTAINER_NAME,
-        "psql", "-U", DATABASE_USER,
-        "-d", MAINTENANCE_DATABASE_NAME,
-        "-v", "ON_ERROR_STOP=1",
-        "-c", sql,
+        "docker",
+        "exec",
+        "-i",
+        DATABASE_CONTAINER_NAME,
+        "psql",
+        "-U",
+        DATABASE_USER,
+        "-d",
+        MAINTENANCE_DATABASE_NAME,
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        sql,
     ]
     run_command(cmd)
 
@@ -77,11 +86,42 @@ def restore_database(
     if drop_existing:
         recreate_database()
 
-    cat_cmd = f"cat {shlex.quote(str(backup_dir))}/{BACKUP_FILE_GLOB}"
-    pg_restore_cmd = " ".join(shlex.quote(part) for part in PG_RESTORE_CMD)
+    # Cross-platform restore: stream all dump parts directly into pg_restore.
+    # This avoids shell pipelines that depend on Unix tools like `cat`.
+    print("Running:", " ".join(PG_RESTORE_CMD), "<", BACKUP_FILE_GLOB)
+    proc = subprocess.Popen(
+        PG_RESTORE_CMD,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    assert proc.stdin is not None
 
-    combined_cmd = f"{cat_cmd} | {pg_restore_cmd}"
-    run_command(combined_cmd, shell=True)
+    stream_failed = False
+    for part_file in backup_files:
+        try:
+            with part_file.open("rb") as f:
+                shutil.copyfileobj(f, proc.stdin)
+        except BrokenPipeError:
+            stream_failed = True
+            break
+
+    try:
+        proc.stdin.close()
+    except BrokenPipeError:
+        stream_failed = True
+
+    stdout, stderr = proc.communicate()
+    returncode = proc.returncode
+    if returncode != 0:
+        stderr_text = stderr.decode("utf-8", errors="replace").strip()
+        if stderr_text:
+            print(stderr_text)
+        if stream_failed and not stderr_text:
+            print("pg_restore terminated early while reading streamed backup data.")
+        raise subprocess.CalledProcessError(
+            returncode, PG_RESTORE_CMD, output=stdout, stderr=stderr
+        )
 
     db_version = get_database_version()
 

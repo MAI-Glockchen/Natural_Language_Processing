@@ -1,39 +1,16 @@
 # -----------------------------
 # Pipeline package initializer
-# Optional: central imports for convenience
+# Expose modules that exist in the current codebase
 # -----------------------------
 
-from .citation_extraction import extract_citations
-from .document_fetching import fetch_document
-from .passage_creation import create_passages
-from .topic_inference import infer_topic
-from .vector_index import PassageVectorIndex
-from .article_collection import collect_valid_articles
-from .topic_vector_pipeline import TopicVectorPipeline
 from .mock_articles import MOCK_ARTICLES
+from .topic_inference import infer_topic
+from .topic_vector_pipeline import TopicVectorPipeline
+from .vector_index import PassageVectorIndex
 
-
-def _missing_dependency_factory(feature_name, install_hint):
-    def _missing_dependency(*args, **kwargs):
-        raise ImportError(
-            f"{feature_name} is unavailable because an optional dependency is missing. "
-            f"Install with: {install_hint}"
-        )
-
-    return _missing_dependency
-
-
-try:
-    from .document_cleaning import clean_html
-except Exception:
-    clean_html = _missing_dependency_factory(
-        "clean_html", "pip install readability-lxml beautifulsoup4"
-    )
-
-
-try:
-    from .db_saving import save_passages_to_db
-except Exception:
-    save_passages_to_db = _missing_dependency_factory(
-        "save_passages_to_db", "pip install sqlalchemy psycopg2-binary"
-    )
+__all__ = [
+    "MOCK_ARTICLES",
+    "infer_topic",
+    "TopicVectorPipeline",
+    "PassageVectorIndex",
+]
