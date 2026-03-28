@@ -1,6 +1,6 @@
 # -----------------------------
 # Pipeline package initializer
-# Expose modules that exist in the current codebase
+# Optional: central imports for convenience
 # -----------------------------
 
 from .mock_articles import MOCK_ARTICLES
