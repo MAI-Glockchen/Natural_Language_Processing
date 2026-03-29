@@ -1,10 +1,10 @@
 # -----------------------------
 # Example: Using the Topic-Vector Pipeline
-# Run with: python topic_vector_demo.py
+# Run with: python -m embedding_pipeline.topic_vector_demo
 # -----------------------------
 
-from pipeline.topic_vector_pipeline import TopicVectorPipeline
-from pipeline.mock_articles import MOCK_ARTICLES
+from embedding_pipeline.topic_vector_pipeline import TopicVectorPipeline
+from embedding_pipeline.mock_articles import MOCK_ARTICLES
 
 
 def main():

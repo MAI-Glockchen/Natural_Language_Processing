@@ -21,13 +21,28 @@ services:
       timeout: 3s
       retries: 8
 
-#####################################################
-# Developers: Please make your own container, with  #
-# your own entrypoint for your task. If you need    #
-# new dependencies, just add them via "uv". The     #
-# Dockerfile will include those dependencies        #
-# automatically. You dont need a new Dockerfile.    #
-#####################################################
+  #####################################################
+  # Developers: Please make your own container, with  #
+  # your own entrypoint for your task. If you need    #
+  # new dependencies, just add them via "uv". The     #
+  # Dockerfile will include those dependencies        #
+  # automatically. You dont need a new Dockerfile.    #
+  #####################################################
+
+  embedding_pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: embedding-pipeline
+    entrypoint: [ "python", "-m", "embedding_pipeline.topic_vector_db_runner" ]
+    depends_on:
+      - postgres
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-wiki}
+      - TOPIC_PIPELINE_LIMIT=${TOPIC_PIPELINE_LIMIT:-10}
+      - TOPIC_PIPELINE_PERSIST_DB=${TOPIC_PIPELINE_PERSIST_DB:-1}
+      - TOPIC_PIPELINE_OUTPUT_DIR=${TOPIC_PIPELINE_OUTPUT_DIR:-vector_indices}
+      - TOPIC_PIPELINE_WORKERS=${TOPIC_PIPELINE_WORKERS:-1}
 
 # main_01:
 #   build:
@@ -64,4 +79,5 @@ services:
 
 volumes:
   postgres_data:
+
 

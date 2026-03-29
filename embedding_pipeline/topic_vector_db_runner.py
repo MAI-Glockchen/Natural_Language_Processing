@@ -1,3 +1,7 @@
+# -----------------------------
+# DB batch runner for topic inference and vector indexing
+# Run with: python -m embedding_pipeline.topic_vector_db_runner
+# -----------------------------
 
 import json
 import math
@@ -11,160 +15,7 @@ from sqlalchemy.orm import selectinload
 
 from db.models import Article, ArticleCitation, Citation, CitationPassage
 from db.session import get_session
-from pipeline.topic_vector_pipeline import TopicVectorPipeline
-
-
-def _non_empty_passage_count(article: Article) -> int:
-    count = 0
-    for citation in article.citations:
-        for passage in citation.passages:
-            if (passage.content or "").strip():
-                count += 1
-    return count
-
-
-def _collect_source_passages() -> list[dict[str, str]]:
-    """Collect passage text from real DB tables for synthetic article hydration."""
-    session = get_session()
-    try:
-        source: list[dict[str, str]] = []
-
-        # Primary source: ORM citation_passages.
-        for row in session.query(CitationPassage).all():
-            text_value = (row.content or "").strip()
-            if not text_value:
-                continue
-            citation = row.citation
-            source.append(
-                {
-                    "text": text_value,
-                    "citation_title": (citation.title if citation is not None else "") or "",
-                    "citation_url": (citation.url if citation is not None else "") or "",
-                }
-            )
-
-        if source:
-            return source
-
-        # Fallback source: restored schemas passage/wiki_article.
-        inspector = inspect(session.bind)
-        if not inspector.has_table("passage"):
-            return source
-
-        passage_columns = {c["name"] for c in inspector.get_columns("passage")}
-        text_col = None
-        for candidate in ["content", "text", "passage_text", "clean_text", "body"]:
-            if candidate in passage_columns:
-                text_col = candidate
-                break
-        if text_col is None:
-            return source
-
-        sql = text(
-            f"""
-            SELECT {text_col} AS ptext
-            FROM passage
-            WHERE {text_col} IS NOT NULL
-            """
-        )
-        for row in session.execute(sql).mappings().all():
-            text_value = (row.get("ptext") or "").strip()
-            if not text_value:
-                continue
-            source.append(
-                {
-                    "text": text_value,
-                    "citation_title": "",
-                    "citation_url": "",
-                }
-            )
-
-        return source
-    finally:
-        session.close()
-
-
-def _hydrate_articles_for_processing(limit: int, min_passages: int) -> None:
-    """
-    Ensure there are at least `limit` processable real Article rows by creating
-    real Article/Citation/CitationPassage records when needed.
-    """
-    session = get_session()
-    try:
-        articles = session.query(Article).all()
-        processable = [a for a in articles if _non_empty_passage_count(a) >= min_passages]
-        if len(processable) >= limit:
-            return
-
-        needed = limit - len(processable)
-        source = _collect_source_passages()
-        if not source:
-            return
-
-        # Reuse source passages cyclically if needed so we can always materialize
-        # enough real Article rows for this runner.
-        source_len = len(source)
-        source_idx = 0
-
-        base_article_idx = 1
-        while needed > 0:
-            article_url = f"db://real-runner/article-{base_article_idx}"
-            article = session.query(Article).filter(Article.url == article_url).one_or_none()
-            if article is None:
-                article = Article(
-                    url=article_url,
-                    title=f"DB real article {base_article_idx}",
-                )
-                session.add(article)
-                session.flush()
-
-            current_count = _non_empty_passage_count(article)
-            if current_count < min_passages:
-                to_add = min_passages - current_count
-                for j in range(to_add):
-                    src = source[source_idx % source_len]
-                    source_idx += 1
-
-                    citation_url = src["citation_url"] or (
-                        f"db://real-runner/citation-{base_article_idx}-{j + 1}"
-                    )
-                    citation = (
-                        session.query(Citation)
-                        .filter(Citation.url == citation_url)
-                        .one_or_none()
-                    )
-                    if citation is None:
-                        citation = Citation(
-                            url=citation_url,
-                            title=src["citation_title"]
-                            or f"DB real citation {base_article_idx}-{j + 1}",
-                        )
-                        session.add(citation)
-                        session.flush()
-
-                    if citation not in article.citations:
-                        article.citations.append(citation)
-
-                    session.add(
-                        CitationPassage(
-                            citation_id=citation.citation_id,
-                            content=src["text"],
-                        )
-                    )
-
-                session.flush()
-
-            if _non_empty_passage_count(article) >= min_passages:
-                needed -= 1
-
-            base_article_idx += 1
-
-        session.commit()
-    except Exception:
-        session.rollback()
-        raise
-    finally:
-        session.close()
+from embedding_pipeline.topic_vector_pipeline import TopicVectorPipeline
 
 
 def _select_processable_article_ids(limit: int, min_passages: int) -> list[int]:
@@ -266,16 +117,12 @@ def _write_combined_summary(output_dir: str, summary: dict, results: list[dict])
 
 
 def main() -> None:
-    limit = int(os.getenv("TOPIC_PIPELINE_LIMIT", "1000"))
+    limit = int(os.getenv("TOPIC_PIPELINE_LIMIT", "10"))
     min_passages = int(os.getenv("TOPIC_PIPELINE_MIN_PASSAGES", "5"))
-    output_dir = os.getenv("TOPIC_PIPELINE_OUTPUT_DIR", "vector_indices_db_test")
-    workers = max(1, int(os.getenv("TOPIC_PIPELINE_WORKERS", "1")))
+    output_dir = os.getenv("TOPIC_PIPELINE_OUTPUT_DIR", "vector_indices")
+    workers = max(2, int(os.getenv("TOPIC_PIPELINE_WORKERS", "1")))
     batch_size = max(1, int(os.getenv("TOPIC_PIPELINE_BATCH_SIZE", "100")))
-    hydrate_missing = os.getenv("TOPIC_PIPELINE_HYDRATE", "0").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-    }
+
     persist_outputs_to_db = os.getenv("TOPIC_PIPELINE_PERSIST_DB", "0").strip().lower() in {
         "1",
         "true",
@@ -286,8 +133,6 @@ def main() -> None:
         "mmr_diversity": 0.4,
     }
 
-    if hydrate_missing:
-        _hydrate_articles_for_processing(limit=limit, min_passages=min_passages)
     selected_article_ids = _select_processable_article_ids(
         limit=limit,
         min_passages=min_passages,

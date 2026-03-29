@@ -225,7 +225,7 @@ A: Reduce `batch_size` or process articles in smaller chunks with `limit` and `s
 ## Run the Demo
 
 ```bash
-python topic_vector_demo.py
+python -m embedding_pipeline.topic_vector_demo
 ```
 
 This processes 10 articles and demonstrates topic inference and vector search.
