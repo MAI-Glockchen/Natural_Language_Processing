@@ -92,11 +92,13 @@ class TopicVectorPipeline:
         passage_data = []
 
         for citation in article.citations:
-            passages = (
-                self.session.query(CitationPassage)
-                .filter(CitationPassage.citation_id == citation.citation_id)
-                .all()
-            )
+            passages = citation.passages
+            if passages is None:
+                passages = (
+                    self.session.query(CitationPassage)
+                    .filter(CitationPassage.citation_id == citation.citation_id)
+                    .all()
+                )
 
             for passage in passages:
                 passage_data.append(
@@ -185,7 +187,6 @@ class TopicVectorPipeline:
             (
                 self.output_session.query(FaissPassageMap)
                 .filter(FaissPassageMap.article_id == article_row.article_id)
-                .filter(FaissPassageMap.index_file == metadata.get("index_file", ""))
                 .delete(synchronize_session=False)
             )
 
@@ -198,9 +199,6 @@ class TopicVectorPipeline:
                         faiss_row_id=row_id,
                         index_file=metadata.get("index_file", ""),
                         passage_key=str(p.get("passage_id", "")),
-                        passage_text=p.get("text", ""),
-                        citation_url=p.get("citation_url", ""),
-                        citation_title=p.get("citation_title", ""),
                     )
                 )
 

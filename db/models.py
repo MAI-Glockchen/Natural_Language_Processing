@@ -3,7 +3,7 @@
 # Defines the PostgreSQL tables for articles, citations, and passages
 # -----------------------------
 
-from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime, UniqueConstraint
 from sqlalchemy.orm import declarative_base, relationship
 import datetime
 
@@ -80,15 +80,15 @@ class ArticleTopicOutput(Base):
 
 class FaissPassageMap(Base):
     __tablename__ = "faiss_passage_map"
+    __table_args__ = (
+        UniqueConstraint("article_id", "faiss_row_id", name="uq_faiss_map_article_row"),
+    )
 
     map_id = Column(Integer, primary_key=True)
     article_id = Column(Integer, ForeignKey("articles.article_id"), index=True)
     faiss_row_id = Column(Integer, index=True)
     index_file = Column(String)
     passage_key = Column(String)
-    passage_text = Column(Text)
-    citation_url = Column(String)
-    citation_title = Column(String)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     article = relationship("Article", back_populates="faiss_passages")

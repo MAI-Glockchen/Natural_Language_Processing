@@ -6,9 +6,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 
-from sqlalchemy import inspect, text
+from sqlalchemy import func, inspect, text
+from sqlalchemy.orm import selectinload
 
-from db.models import Article, Citation, CitationPassage
+from db.models import Article, ArticleCitation, Citation, CitationPassage
 from db.session import get_session
 from pipeline.topic_vector_pipeline import TopicVectorPipeline
 
@@ -170,13 +171,19 @@ def _select_processable_article_ids(limit: int, min_passages: int) -> list[int]:
     """Select up to `limit` real Article IDs with enough non-empty passages."""
     session = get_session()
     try:
-        selected: list[int] = []
-        for article in session.query(Article).order_by(Article.article_id.asc()).all():
-            if _non_empty_passage_count(article) >= min_passages:
-                selected.append(article.article_id)
-            if len(selected) >= limit:
-                break
-        return selected
+        rows = (
+            session.query(Article.article_id)
+            .join(ArticleCitation, ArticleCitation.article_id == Article.article_id)
+            .join(CitationPassage, CitationPassage.citation_id == ArticleCitation.citation_id)
+            .filter(CitationPassage.content.is_not(None))
+            .filter(func.length(func.trim(CitationPassage.content)) > 0)
+            .group_by(Article.article_id)
+            .having(func.count(CitationPassage.passage_id) >= min_passages)
+            .order_by(Article.article_id.asc())
+            .limit(limit)
+            .all()
+        )
+        return [int(row[0]) for row in rows]
     finally:
         session.close()
 
@@ -193,20 +200,23 @@ def _process_article_chunk(
     worker_idx: int,
     output_root: str,
     min_passages: int,
+    batch_size: int,
+    persist_outputs_to_db: bool,
     infer_topic_kwargs: dict,
 ) -> dict:
     worker_output_dir = f"{output_root}/worker_{worker_idx}"
     pipeline = TopicVectorPipeline(
         output_dir=worker_output_dir,
-        batch_size=max(1, len(article_ids)),
+        batch_size=max(1, min(batch_size, len(article_ids))),
         min_passages=min_passages,
         use_db=True,
-        persist_outputs_to_db=True,
+        persist_outputs_to_db=persist_outputs_to_db,
     )
 
     articles = (
         pipeline.session.query(Article)
         .filter(Article.article_id.in_(article_ids))
+        .options(selectinload(Article.citations).selectinload(Citation.passages))
         .all()
         if article_ids
         else []
@@ -256,16 +266,28 @@ def _write_combined_summary(output_dir: str, summary: dict, results: list[dict])
 
 
 def main() -> None:
-    limit = 20
-    min_passages = 5
-    output_dir = "vector_indices_db_test"
+    limit = int(os.getenv("TOPIC_PIPELINE_LIMIT", "1000"))
+    min_passages = int(os.getenv("TOPIC_PIPELINE_MIN_PASSAGES", "5"))
+    output_dir = os.getenv("TOPIC_PIPELINE_OUTPUT_DIR", "vector_indices_db_test")
     workers = max(1, int(os.getenv("TOPIC_PIPELINE_WORKERS", "1")))
+    batch_size = max(1, int(os.getenv("TOPIC_PIPELINE_BATCH_SIZE", "100")))
+    hydrate_missing = os.getenv("TOPIC_PIPELINE_HYDRATE", "0").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    persist_outputs_to_db = os.getenv("TOPIC_PIPELINE_PERSIST_DB", "0").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
     infer_topic_kwargs = {
         "top_k": 5,
         "mmr_diversity": 0.4,
     }
 
-    _hydrate_articles_for_processing(limit=limit, min_passages=min_passages)
+    if hydrate_missing:
+        _hydrate_articles_for_processing(limit=limit, min_passages=min_passages)
     selected_article_ids = _select_processable_article_ids(
         limit=limit,
         min_passages=min_passages,
@@ -281,15 +303,18 @@ def main() -> None:
     if workers == 1 or len(selected_article_ids) <= 1:
         pipeline = TopicVectorPipeline(
             output_dir=output_dir,
-            batch_size=50,
+            batch_size=batch_size,
             min_passages=min_passages,
             use_db=True,
-            persist_outputs_to_db=True,
+            persist_outputs_to_db=persist_outputs_to_db,
         )
 
         selected_articles = (
             pipeline.session.query(Article)
             .filter(Article.article_id.in_(selected_article_ids))
+            .options(
+                selectinload(Article.citations).selectinload(Citation.passages)
+            )
             .all()
             if selected_article_ids
             else []
@@ -324,6 +349,8 @@ def main() -> None:
                     idx,
                     output_dir,
                     min_passages,
+                    batch_size,
+                    persist_outputs_to_db,
                     infer_topic_kwargs,
                 ): chunk
                 for idx, chunk in enumerate(chunks, start=1)
