@@ -7,8 +7,13 @@
 **/proposal*.out
 
 # Python cache
-**__pycache__**
+**/__pycache__/
+*.pyc
 
 # Generated runtime artifacts
 db-data/
 vector_indices/
+.idea/
+.vscode/
+/.venv
+
