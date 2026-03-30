@@ -27,7 +27,7 @@ Use this when Postgres is running and has article/citation data.
 
 ```powershell
 $env:DATABASE_URL='postgresql+psycopg2://postgres:postgres@localhost:5432/wiki'
-$env:TOPIC_PIPELINE_LIMIT='5'
+$env:TOPIC_PIPELINE_LIMIT='10'
 $env:TOPIC_PIPELINE_PERSIST_DB='1'
 python -m embedding_pipeline.topic_vector_db_runner
 ```
