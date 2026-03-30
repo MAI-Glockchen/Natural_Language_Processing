@@ -1,0 +1,310 @@
+{
+  "processed": 10,
+  "skipped": 0,
+  "failed": 0,
+  "timestamp": "2026-03-30T16:48:18.045628",
+  "articles": [
+    {
+      "article_url": "https://en.wikipedia.org/wiki/Elvis_Presley",
+      "article_title": "Elvis Presley",
+      "topic": "presley",
+      "candidates": [
+        [
+          "presley",
+          1.0
+        ],
+        [
+          "director remembers landmark",
+          0.08388707786798477
+        ],
+        [
+          "pasetta",
+          0.1214708685874939
+        ],
+        [
+          "didn television accounts",
+          0.005678114481270313
+        ],
+        [
+          "aloha",
+          0.0
+        ]
+      ],
+      "num_passages": 22,
+      "index_file": "0_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "https://en.wikipedia.org/wiki/Joseph_Stalin",
+      "article_title": "Joseph Stalin",
+      "topic": "stalin",
+      "candidates": [
+        [
+          "stalin",
+          1.0
+        ],
+        [
+          "soviet",
+          0.6875837445259094
+        ],
+        [
+          "bolsheviks",
+          0.2615109980106354
+        ],
+        [
+          "nikita khrushchev",
+          0.23713405430316925
+        ],
+        [
+          "year terror",
+          0.025276290252804756
+        ]
+      ],
+      "num_passages": 26,
+      "index_file": "1_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "https://en.wikipedia.org/wiki/Rehman_Dakait",
+      "article_title": "Rehman Dakait",
+      "topic": "rehman dakait",
+      "candidates": [
+        [
+          "rehman dakait",
+          1.0
+        ],
+        [
+          "karachi",
+          0.9834564924240112
+        ],
+        [
+          "lyari",
+          0.9955052733421326
+        ],
+        [
+          "police",
+          0.258213073015213
+        ]
+      ],
+      "num_passages": 28,
+      "index_file": "2_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "https://en.wikipedia.org/wiki/Keith_Hunter_Jesperson",
+      "article_title": "Keith Hunter Jesperson",
+      "topic": "oregon offender search",
+      "candidates": [
+        [
+          "\"oregon offender search\"",
+          1.0
+        ],
+        [
+          "jesperson",
+          0.8367254137992859
+        ],
+        [
+          "okaloosa county sheriff",
+          0.5662199854850769
+        ],
+        [
+          "office teams othram",
+          0.3914335072040558
+        ],
+        [
+          "medical examiner",
+          0.39725741744041443
+        ]
+      ],
+      "num_passages": 39,
+      "index_file": "3_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "https://en.wikipedia.org/wiki/2026_FIFA_World_Cup_qualification_%28CAF%29",
+      "article_title": "2026 FIFA World Cup qualification (CAF)",
+      "topic": "world cup qualifiers",
+      "candidates": [
+        [
+          "world cup qualifiers",
+          0.6109094023704529
+        ],
+        [
+          "congo",
+          0.32229453325271606
+        ],
+        [
+          "caf reveals format",
+          0.20399804413318634
+        ],
+        [
+          "eritrea",
+          0.22453448176383972
+        ]
+      ],
+      "num_passages": 30,
+      "index_file": "4_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "https://en.wikipedia.org/wiki/Lee_Majors",
+      "article_title": "Lee Majors",
+      "topic": "lee majors",
+      "candidates": [
+        [
+          "lee majors",
+          1.0
+        ],
+        [
+          "faith majors",
+          0.524541437625885
+        ],
+        [
+          "better known stage",
+          0.27554628252983093
+        ],
+        [
+          "six million dollar",
+          0.1769208163022995
+        ],
+        [
+          "harvey better known",
+          0.18709127604961395
+        ]
+      ],
+      "num_passages": 23,
+      "index_file": "5_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "https://en.wikipedia.org/wiki/2026_FIFA_World_Cup_qualification_%28CONMEBOL%29",
+      "article_title": "2026 FIFA World Cup qualification (CONMEBOL)",
+      "topic": "fifa",
+      "candidates": [
+        [
+          "fifa",
+          1.0
+        ],
+        [
+          "recommends slot allocation",
+          0.1026342511177063
+        ],
+        [
+          "world cup",
+          0.45899081230163574
+        ],
+        [
+          "eliminatorias sudamericanas",
+          0.12887677550315857
+        ],
+        [
+          "congress",
+          0.1202453002333641
+        ]
+      ],
+      "num_passages": 30,
+      "index_file": "6_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "https://en.wikipedia.org/wiki/Yu_Menglong",
+      "article_title": "Yu Menglong",
+      "topic": "actor menglong dies",
+      "candidates": [
+        [
+          "actor menglong dies",
+          1.0
+        ],
+        [
+          "dies falling building",
+          0.41211366653442383
+        ],
+        [
+          "the original",
+          0.16383381187915802
+        ],
+        [
+          "allegations emerge deaths",
+          0.15778183937072754
+        ],
+        [
+          "beijing",
+          0.052334681153297424
+        ]
+      ],
+      "num_passages": 22,
+      "index_file": "7_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "https://en.wikipedia.org/wiki/Kavya_Maran",
+      "article_title": "Kavya Maran",
+      "topic": "sunrisers hyderabad ceo",
+      "candidates": [
+        [
+          "sunrisers hyderabad ceo",
+          1.0
+        ],
+        [
+          "kavya maran",
+          0.5241912603378296
+        ],
+        [
+          "daughter appointed sun",
+          0.3573789894580841
+        ],
+        [
+          "making waves ipl",
+          0.18643423914909363
+        ],
+        [
+          "season network business",
+          0.26440903544425964
+        ]
+      ],
+      "num_passages": 29,
+      "index_file": "8_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    },
+    {
+      "article_url": "https://en.wikipedia.org/wiki/Michelle_Thomas",
+      "article_title": "Michelle Thomas",
+      "topic": "michelle",
+      "candidates": [
+        [
+          "michelle",
+          1.0
+        ],
+        [
+          "school yearbooks alumni",
+          0.5981168150901794
+        ],
+        [
+          "penwah",
+          0.5269699692726135
+        ],
+        [
+          "legendary locals brookline",
+          0.30176833271980286
+        ],
+        [
+          "americans",
+          0.31882259249687195
+        ]
+      ],
+      "num_passages": 26,
+      "index_file": "9_article.faiss",
+      "index_backend": "faiss",
+      "embedding_dim": 384
+    }
+  ]
+}
