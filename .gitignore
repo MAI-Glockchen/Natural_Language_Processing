@@ -12,8 +12,7 @@
 
 # Generated runtime artifacts
 db-data/
-vector_indices/*
-!vector_indices/summary.json
+
 .idea/
 .vscode/
 /.venv
