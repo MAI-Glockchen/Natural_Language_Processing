@@ -1,7 +1,7 @@
-# -----------------------------
-# DB batch runner for topic inference and vector indexing
-# Run with: python -m embedding_pipeline.topic_vector_db_runner
-# -----------------------------
+"""DB batch runner for topic inference and vector indexing.
+
+Run with: python -m embedding_pipeline.topic_vector_db_runner
+"""
 
 import json
 import math
@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 
-from sqlalchemy import func, inspect, text
+from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 
 from db.models import Article, ArticleCitation, Citation, CitationPassage
@@ -30,7 +30,8 @@ def _select_processable_article_ids(limit: int, min_passages: int) -> list[int]:
             .filter(func.length(func.trim(CitationPassage.content)) > 0)
             .group_by(Article.article_id)
             .having(func.count(CitationPassage.passage_id) >= min_passages)
-            .order_by(Article.article_id.asc())
+            # Prefer lighter articles first to keep Docker runs predictable.
+            .order_by(func.count(CitationPassage.passage_id).asc(), Article.article_id.asc())
             .limit(limit)
             .all()
         )
@@ -117,10 +118,11 @@ def _write_combined_summary(output_dir: str, summary: dict, results: list[dict])
 
 
 def main() -> None:
-    limit = int(os.getenv("TOPIC_PIPELINE_LIMIT", "10"))
+    # Keep runs bounded to 10 articles for stable Docker execution time.
+    limit = min(10, int(os.getenv("TOPIC_PIPELINE_LIMIT", "10")))
     min_passages = int(os.getenv("TOPIC_PIPELINE_MIN_PASSAGES", "5"))
     output_dir = os.getenv("TOPIC_PIPELINE_OUTPUT_DIR", "vector_indices")
-    workers = max(2, int(os.getenv("TOPIC_PIPELINE_WORKERS", "1")))
+    workers = max(1, int(os.getenv("TOPIC_PIPELINE_WORKERS", "1")))
     batch_size = max(1, int(os.getenv("TOPIC_PIPELINE_BATCH_SIZE", "100")))
 
     persist_outputs_to_db = os.getenv("TOPIC_PIPELINE_PERSIST_DB", "0").strip().lower() in {
@@ -157,9 +159,7 @@ def main() -> None:
         selected_articles = (
             pipeline.session.query(Article)
             .filter(Article.article_id.in_(selected_article_ids))
-            .options(
-                selectinload(Article.citations).selectinload(Citation.passages)
-            )
+            .options(selectinload(Article.citations).selectinload(Citation.passages))
             .all()
             if selected_article_ids
             else []

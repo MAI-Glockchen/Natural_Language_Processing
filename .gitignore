@@ -8,3 +8,7 @@
 
 # Python cache
 **__pycache__**
+
+# Generated runtime artifacts
+db-data/
+vector_indices/
