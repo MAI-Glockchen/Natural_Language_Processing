@@ -201,6 +201,48 @@ GENERIC_SINGLE_TOKENS: frozenset[str] = frozenset(
     }
 )
 
+WEB_NOISE_TOKENS: frozenset[str] = frozenset(
+    {
+        "http",
+        "https",
+        "www",
+        "com",
+        "org",
+        "net",
+        "protocol",
+        "secure",
+        "transfer",
+        "archive",
+        "news",
+        "web",
+        "online",
+    }
+)
+
+WEB_SUFFIX_TOKENS: frozenset[str] = frozenset({"com", "org", "net", "www"})
+
+WEB_CONTEXT_TOKENS: frozenset[str] = frozenset(
+    {
+        "news",
+        "protocol",
+        "secure",
+        "transfer",
+        "http",
+        "https",
+        "archive",
+    }
+)
+
+HARD_BLOCKLIST_PHRASES: frozenset[str] = frozenset(
+    {
+        "hypertext transfer protocol",
+        "hypertext transfer",
+        "transfer protocol secure",
+        "protocol secure",
+        "hypertext",
+    }
+)
+
 NER_BLOCKLIST: frozenset[str] = frozenset(
     {
         "The",
@@ -262,13 +304,22 @@ def _content_tokens(tokens: list[str]) -> list[str]:
 
 
 def _normalize_candidate(text: str) -> str:
-    return normalize_text(text).strip()
+    normalized = normalize_text(text)
+    normalized = normalized.replace("-", " ")
+    normalized = re.sub(r"\s+", " ", normalized)
+    return normalized.strip()
 
 
 def _is_informative_candidate(candidate: str) -> bool:
     """Heuristic filter to remove low-information phrase fragments."""
     tokens = [t for t in candidate.split() if t]
     if not tokens:
+        return False
+
+    if candidate in HARD_BLOCKLIST_PHRASES:
+        return False
+
+    if len(tokens) > 5:
         return False
 
     if tokens[0] in LOW_SIGNAL_BOUNDARY_TOKENS:
@@ -283,6 +334,28 @@ def _is_informative_candidate(candidate: str) -> bool:
         if len(tok) < 4:
             return False
 
+    if all(t in WEB_NOISE_TOKENS for t in tokens):
+        return False
+
+    web_suffix_hits = sum(1 for t in tokens if t in WEB_SUFFIX_TOKENS)
+    web_context_hits = sum(1 for t in tokens if t in WEB_CONTEXT_TOKENS)
+    if web_suffix_hits >= 1 and web_context_hits >= 1:
+        return False
+
+    # Reject short domain/newswire fragments such as "dawn com news".
+    if len(tokens) <= 4 and web_suffix_hits >= 1 and len(tokens) - web_suffix_hits <= 2:
+        return False
+
+    if tokens[0] in WEB_SUFFIX_TOKENS or tokens[0] in {"http", "https", "www"}:
+        return False
+
+    # Hard reject protocol boilerplate, even when mixed with otherwise valid terms.
+    token_set = set(tokens)
+
+
+    if "protocol" in token_set or "hypertext" in token_set or "transfer" in token_set or "secure" in token_set:
+        return False
+
     action_count = sum(1 for t in tokens if t in LOW_SIGNAL_ACTION_TOKENS)
     if len(tokens) >= 3 and action_count >= 1:
         return False
@@ -292,6 +365,108 @@ def _is_informative_candidate(candidate: str) -> bool:
         return False
 
     return True
+
+
+def _build_title_hint_vocab(title_hints: list[str] | None) -> set[str]:
+    if not title_hints:
+        return set()
+
+    vocab: set[str] = set()
+    for title in title_hints:
+        norm_title = _normalize_candidate(title)
+        if not norm_title:
+            continue
+        vocab.add(norm_title)
+        vocab.update(_content_tokens(_tokenize(norm_title)))
+    return vocab
+
+
+def _candidate_noise_penalty(candidate: str, title_vocab: set[str]) -> float:
+    """Return a score penalty [0, 0.85] for URL/protocol-style candidates."""
+    lower = candidate.lower()
+    tokens = [t for t in _tokenize(lower) if t]
+    if not tokens:
+        return 0.0
+
+    noise_hits = sum(1 for t in tokens if t in WEB_NOISE_TOKENS)
+    penalty = 0.0
+
+    if noise_hits > 0:
+        penalty += 0.35 * (noise_hits / len(tokens))
+    if re.search(r"(?:https?|www|\.com|\.org|\.net)", lower):
+        penalty += 0.35
+    if noise_hits == len(tokens):
+        penalty += 0.25
+
+    if title_vocab and any(t in title_vocab for t in tokens):
+        penalty *= 0.35
+
+    return min(0.85, penalty)
+
+
+def _label_tokens(text: str) -> list[str]:
+    """Tokenize a label while splitting URL/slug separators like '-' and '_' ."""
+    return [t.lower() for t in re.findall(r"[a-zA-Z]{2,}", normalize_text(text))]
+
+
+def _canonicalize_topic_label(best_label: str, title_hints: list[str] | None) -> str:
+    """Normalize noisy labels into concise topic names anchored by the article title."""
+    tokens = _label_tokens(best_label)
+    if not tokens:
+        return best_label
+
+    first_title = title_hints[0] if title_hints else ""
+    title_tokens = _content_tokens(_tokenize(first_title)) if first_title else []
+
+    noisy_shape = (
+        any(ch in best_label for ch in ("-", "_", "/", "."))
+        or sum(1 for t in tokens if t in WEB_NOISE_TOKENS) >= 2
+    )
+
+    if noisy_shape and title_tokens:
+        # Anchor to the article title and keep up to two meaningful extras.
+        base: list[str] = []
+        seen: set[str] = set()
+
+        for t in title_tokens:
+            if t in seen:
+                continue
+            base.append(t)
+            seen.add(t)
+            if len(base) >= 2:
+                break
+
+        extras = [
+            t
+            for t in tokens
+            if t not in seen
+            and t not in STOPWORDS
+            and t not in LOW_SIGNAL_BOUNDARY_TOKENS
+            and t not in WEB_NOISE_TOKENS
+            and len(t) >= 4
+        ]
+
+        for t in extras:
+            if t in seen:
+                continue
+            base.append(t)
+            seen.add(t)
+            if len(base) >= 4:
+                break
+
+        if len(base) >= 2:
+            return " ".join(base)
+
+    # Fallback: clean separators and drop obvious web noise for readability.
+    cleaned = [
+        t
+        for t in tokens
+        if t not in WEB_NOISE_TOKENS and t not in STOPWORDS and len(t) >= 3
+    ]
+    if cleaned:
+        return " ".join(cleaned[:5])
+
+    return best_label
 
 
 def _extract_named_entities(passages: list[str]) -> Counter:
@@ -593,19 +768,27 @@ def infer_topic(
         top_candidates, emb_cache, threshold=concept_cluster_threshold
     )
 
+    title_vocab = _build_title_hint_vocab(title_hints)
+
     max_raw = max((s for _, s in clustered), default=1.0)
     final_scores: Counter = Counter()
     for label, raw_score in clustered:
         norm_freq = raw_score / max_raw
         sem_score = float(emb_cache[label] @ centroid)
-        final_scores[label] = frequency_weight * norm_freq + semantic_weight * sem_score
+        base_score = frequency_weight * norm_freq + semantic_weight * sem_score
+        penalty = _candidate_noise_penalty(label, title_vocab)
+        final_scores[label] = base_score * (1.0 - penalty)
 
     pre_mmr = final_scores.most_common(max(top_k * 4, 20))
     mmr_cache = {label: emb_cache[label] for label, _ in pre_mmr if label in emb_cache}
     candidates = _mmr_rerank(pre_mmr, mmr_cache, top_k=top_k, diversity=mmr_diversity)
     candidates = _deduplicate_substrings(candidates)[:top_k]
 
-    best_topic = candidates[0][0] if candidates else "unknown topic"
+    best_topic = (
+        _canonicalize_topic_label(candidates[0][0], title_hints)
+        if candidates
+        else "unknown topic"
+    )
     result = {"topic": best_topic, "candidates": candidates}
 
     if return_passage_embeddings:
