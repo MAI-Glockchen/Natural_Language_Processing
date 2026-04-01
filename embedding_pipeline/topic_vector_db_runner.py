@@ -163,7 +163,7 @@ def _write_combined_summary(output_dir: str, summary: dict, results: list[dict])
 
 
 def main() -> None:
-    limit = min(10, int(os.getenv("TOPIC_PIPELINE_LIMIT", "10")))
+    limit = int(os.getenv("TOPIC_PIPELINE_LIMIT", "10"))
     min_passages = int(os.getenv("TOPIC_PIPELINE_MIN_PASSAGES", "5"))
     output_dir = os.getenv("TOPIC_PIPELINE_OUTPUT_DIR", "vector_indices")
     batch_size = max(1, int(os.getenv("TOPIC_PIPELINE_BATCH_SIZE", "100")))
