@@ -166,7 +166,6 @@ def main() -> None:
     limit = min(10, int(os.getenv("TOPIC_PIPELINE_LIMIT", "10")))
     min_passages = int(os.getenv("TOPIC_PIPELINE_MIN_PASSAGES", "5"))
     output_dir = os.getenv("TOPIC_PIPELINE_OUTPUT_DIR", "vector_indices")
-    workers = max(1, int(os.getenv("TOPIC_PIPELINE_WORKERS", "1")))
     batch_size = max(1, int(os.getenv("TOPIC_PIPELINE_BATCH_SIZE", "100")))
 
     persist_outputs_to_db = os.getenv("TOPIC_PIPELINE_PERSIST_DB", "0").strip().lower() in {
@@ -190,12 +189,6 @@ def main() -> None:
         )
 
     print("Starting topic inference and vector indexing pipeline (backup DB mode)...\n")
-
-    if workers > 1:
-        print(
-            "[INFO] Backup-schema mode currently runs in single worker mode; "
-            f"requested workers={workers}."
-        )
 
     pipeline = TopicVectorPipeline(
         output_dir=output_dir,
