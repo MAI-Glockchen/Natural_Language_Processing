@@ -755,9 +755,8 @@ def infer_topic(
             result["passage_embeddings"] = np.empty((0,), dtype=np.float32)
         return result
 
-    phrase_scores = _surface_deduplicate(phrase_scores)
-
     top_candidates: Counter = Counter(dict(phrase_scores.most_common(MAX_CANDIDATES)))
+    top_candidates = _surface_deduplicate(top_candidates)
     candidate_labels = list(top_candidates.keys())
 
     emb_cache, centroid, passage_vecs = _build_embedding_cache(
