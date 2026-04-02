@@ -15,7 +15,7 @@ def main():
     # Initialize pipeline in mock/offline mode (no DB required)
     pipeline = TopicVectorPipeline(
         output_dir="vector_indices",
-        batch_size=5,
+        batch_size=10,
         min_passages=5,
         use_db=False,
         persist_outputs_to_db=False,
