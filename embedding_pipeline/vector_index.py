@@ -29,7 +29,7 @@ from utils.text_normalization import normalize_text
 DEFAULT_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 DEFAULT_EMBEDDING_DEVICE = os.getenv("TOPIC_EMBED_DEVICE", "auto").strip().lower()
 DEFAULT_EMBEDDING_BATCH_SIZE = max(
-    1, int(os.getenv("TOPIC_EMBED_BATCH_SIZE", "256"))
+    1, int(os.getenv("TOPIC_EMBED_BATCH_SIZE", "64"))
 )
 _MODEL_CACHE: dict = {}
 

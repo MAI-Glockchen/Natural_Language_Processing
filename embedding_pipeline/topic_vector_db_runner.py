@@ -166,7 +166,7 @@ def main() -> None:
     limit = int(os.getenv("TOPIC_PIPELINE_LIMIT", "10"))
     min_passages = int(os.getenv("TOPIC_PIPELINE_MIN_PASSAGES", "5"))
     output_dir = os.getenv("TOPIC_PIPELINE_OUTPUT_DIR", "vector_indices")
-    batch_size = max(1, int(os.getenv("TOPIC_PIPELINE_BATCH_SIZE", "100")))
+    batch_size = max(1, int(os.getenv("TOPIC_PIPELINE_BATCH_SIZE", "10")))
 
     persist_outputs_to_db = os.getenv("TOPIC_PIPELINE_PERSIST_DB", "0").strip().lower() in {
         "1",
