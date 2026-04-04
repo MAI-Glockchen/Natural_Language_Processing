@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -25,6 +26,7 @@ class ArticleBundle:
     wiki_article_id: int
     reference_title: str
     reference_text: str
+    available_passage_count: int
 
 
 @dataclass(slots=True)
@@ -67,10 +69,18 @@ class RetrievalService:
                 ato.embedding_dim,
                 w.id AS wiki_article_id,
                 w.title AS reference_title,
-                w.text AS reference_text
+                w.text AS reference_text,
+                COALESCE(fpm_counts.available_passage_count, 0) AS available_passage_count
             FROM articles a
             JOIN article_topic_outputs ato ON ato.article_id = a.article_id
             JOIN wiki_article w ON w.url = a.url
+            LEFT JOIN (
+                SELECT
+                    article_id,
+                    COUNT(*)::int AS available_passage_count
+                FROM faiss_passage_map
+                GROUP BY article_id
+            ) AS fpm_counts ON fpm_counts.article_id = a.article_id
             WHERE a.article_id = :article_id
             """,
             {"article_id": article_id},
@@ -89,6 +99,7 @@ class RetrievalService:
             wiki_article_id=int(row["wiki_article_id"]),
             reference_title=str(row["reference_title"]),
             reference_text=str(row["reference_text"]),
+            available_passage_count=int(row["available_passage_count"]),
         )
 
     def retrieve_top_k(self, bundle: ArticleBundle, top_k: int) -> list[RetrievedPassage]:
@@ -98,8 +109,9 @@ class RetrievalService:
 
         index = faiss.read_index(str(index_path))
         query = self._encode_query(self._build_query_text(bundle))
-        k = min(top_k, index.ntotal)
-        scores, row_ids = index.search(query, k)
+
+        search_k = min(max(top_k * 3, top_k), index.ntotal)
+        scores, row_ids = index.search(query, search_k)
         faiss_rows = [int(row_id) for row_id in row_ids[0] if int(row_id) >= 0]
         if not faiss_rows:
             return []
@@ -124,12 +136,12 @@ class RetrievalService:
         )
         by_row_id: dict[int, dict[str, Any]] = {int(row["faiss_row_id"]): dict(row) for row in rows}
 
-        passages: list[RetrievedPassage] = []
+        ranked: list[RetrievedPassage] = []
         for rank, row_id in enumerate(faiss_rows, start=1):
             row = by_row_id.get(row_id)
             if row is None:
                 continue
-            passages.append(
+            ranked.append(
                 RetrievedPassage(
                     rank=rank,
                     faiss_row_id=row_id,
@@ -141,38 +153,96 @@ class RetrievalService:
                     passage_key=str(row["passage_key"]),
                 )
             )
-        return passages
+
+        return self._select_diverse_passages(ranked, top_k)
+
+    def _select_diverse_passages(
+        self,
+        passages: list[RetrievedPassage],
+        top_k: int,
+    ) -> list[RetrievedPassage]:
+        selected: list[RetrievedPassage] = []
+        per_source_counts: dict[int, int] = {}
+
+        for passage in passages:
+            if len(selected) >= top_k:
+                break
+
+            source_count = per_source_counts.get(passage.source_document_id, 0)
+            if source_count >= 3:
+                continue
+
+            norm = _normalize_text(passage.text)
+            if any(_too_similar(norm, _normalize_text(existing.text)) for existing in selected):
+                continue
+
+            per_source_counts[passage.source_document_id] = source_count + 1
+            selected.append(
+                RetrievedPassage(
+                    rank=len(selected) + 1,
+                    faiss_row_id=passage.faiss_row_id,
+                    score=passage.score,
+                    source_document_id=passage.source_document_id,
+                    idx=passage.idx,
+                    text=passage.text,
+                    word_count=passage.word_count,
+                    passage_key=passage.passage_key,
+                )
+            )
+
+        if len(selected) < min(top_k, len(passages)):
+            used = {p.faiss_row_id for p in selected}
+            for passage in passages:
+                if len(selected) >= top_k:
+                    break
+                if passage.faiss_row_id in used:
+                    continue
+                selected.append(
+                    RetrievedPassage(
+                        rank=len(selected) + 1,
+                        faiss_row_id=passage.faiss_row_id,
+                        score=passage.score,
+                        source_document_id=passage.source_document_id,
+                        idx=passage.idx,
+                        text=passage.text,
+                        word_count=passage.word_count,
+                        passage_key=passage.passage_key,
+                    )
+                )
+
+        return selected
 
     def _build_query_text(self, bundle: ArticleBundle) -> str:
         parts = [bundle.article_title.strip(), bundle.topic.strip()]
-        parts.extend(self._candidate_terms(bundle.candidates_json))
+        parts.extend(self._top_candidate_terms(bundle.candidates_json, limit=3))
         return "\n".join(part for part in parts if part)
 
-    def _candidate_terms(self, candidates_json: str | None, limit: int = 3) -> list[str]:
+    @staticmethod
+    def _top_candidate_terms(candidates_json: str | None, limit: int) -> list[str]:
         if not candidates_json:
             return []
+
         try:
-            payload = json.loads(candidates_json)
+            raw = json.loads(candidates_json)
         except json.JSONDecodeError:
             return []
 
-        terms: list[str] = []
-        if not isinstance(payload, list):
-            return terms
-
-        for item in payload:
-            if not isinstance(item, list) or not item:
+        candidates: list[str] = []
+        seen: set[str] = set()
+        for item in raw:
+            if not isinstance(item, (list, tuple)) or not item:
                 continue
             term = str(item[0]).strip()
             if not term:
                 continue
-            lowered = term.lower()
-            if any(existing.lower() == lowered for existing in terms):
+            key = term.lower()
+            if key in seen:
                 continue
-            terms.append(term)
-            if len(terms) >= limit:
+            seen.add(key)
+            candidates.append(term)
+            if len(candidates) >= limit:
                 break
-        return terms
+        return candidates
 
     def _encode_query(self, text: str) -> np.ndarray:
         vector = self._encoder.encode(
@@ -183,3 +253,21 @@ class RetrievalService:
         if vector.dtype != np.float32:
             vector = vector.astype(np.float32)
         return vector
+
+
+def _normalize_text(text: str) -> str:
+    text = text.lower()
+    text = re.sub(r"\s+", " ", text)
+    text = re.sub(r"[^a-z0-9 ]+", " ", text)
+    return text.strip()
+
+
+def _too_similar(a: str, b: str) -> bool:
+    if not a or not b:
+        return False
+    a_words = set(a.split())
+    b_words = set(b.split())
+    if not a_words or not b_words:
+        return False
+    overlap = len(a_words & b_words) / max(1, min(len(a_words), len(b_words)))
+    return overlap >= 0.8

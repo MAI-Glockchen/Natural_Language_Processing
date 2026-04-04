@@ -27,20 +27,55 @@ class GenerationService:
         self._temperature = temperature
         self._max_tokens = max_tokens
 
-    def generate(self, prompt: str) -> GenerationOutput:
+    def generate(self, prompt: str, target_title: str) -> GenerationOutput:
+        content = self._chat(
+            system_prompt=(
+                "You write neutral encyclopedia-style articles from retrieved evidence. "
+                "You must obey the requested output format exactly. "
+                "Output only TITLE/ARTICLE. "
+                "Do not write tables, charts, lists, Q&A, or meta-commentary. "
+                "Do not invent unrelated topics."
+            ),
+            user_prompt=prompt,
+            temperature=self._temperature,
+        ).strip()
+
+        if not _looks_like_structured_output(content) or _is_bad_article_body(content, target_title):
+            repair_prompt = (
+                f"Rewrite the following into a neutral encyclopedia-style prose article about {target_title}.\n"
+                f"The title must be exactly: {target_title}\n"
+                "Output only this format:\n"
+                f"TITLE: {target_title}\n\n"
+                "ARTICLE:\n"
+                "<plain prose article body>\n\n"
+                "Do not output tables, lists, markdown, commentary, Q&A, or instructions.\n"
+                "Use only the article content that is actually about the target title.\n\n"
+                "CONTENT TO REWRITE:\n"
+                f"{content}"
+            )
+            content = self._chat(
+                system_prompt=(
+                    "You repair malformed outputs into plain prose encyclopedia articles. "
+                    "Output only repaired TITLE/ARTICLE text."
+                ),
+                user_prompt=repair_prompt,
+                temperature=0.0,
+            ).strip()
+
+        title, text = _split_title_and_text(content)
+        if not text or _is_bad_article_body(content, target_title):
+            raise ValueError("Model output did not contain a valid article body")
+
+        return GenerationOutput(title=title, text=text, raw_response=content)
+
+    def _chat(self, system_prompt: str, user_prompt: str, temperature: float) -> str:
         payload = {
             "model": self._model_name,
             "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "You write neutral encyclopedia-style articles from retrieved evidence. "
-                        "Follow the requested output format exactly."
-                    ),
-                },
-                {"role": "user", "content": prompt},
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
             ],
-            "temperature": self._temperature,
+            "temperature": temperature,
             "max_tokens": self._max_tokens,
             "stream": False,
         }
@@ -48,43 +83,71 @@ class GenerationService:
             response = client.post(f"{self._base_url}/chat/completions", json=payload)
             response.raise_for_status()
             data = response.json()
+        return str(data["choices"][0]["message"]["content"])
 
-        content = str(data["choices"][0]["message"]["content"]).strip()
-        title, text = _split_title_and_text(content)
-        return GenerationOutput(title=title, text=text, raw_response=content)
+
+def _looks_like_structured_output(content: str) -> bool:
+    stripped = content.lstrip()
+    return stripped.startswith("TITLE:") and "\nARTICLE:\n" in stripped
+
+
+def _is_bad_article_body(content: str, target_title: str) -> bool:
+    lowered = content.lower()
+    title_lower = target_title.lower()
+
+    bad_markers = (
+        "document:",
+        "question:",
+        "comparison table",
+        "relevance score",
+        "|---",
+        "here's a breakdown",
+        "here is a breakdown",
+        "based on your understanding",
+    )
+    if any(marker in lowered for marker in bad_markers):
+        return True
+
+    _, body = _split_title_and_text(content)
+    if not body:
+        return True
+
+    body_lower = body.lower()
+    if title_lower not in body_lower[:800]:
+        return True
+
+    lines = [line.strip() for line in body.splitlines() if line.strip()]
+    if sum(1 for line in lines if "|" in line) >= 3:
+        return True
+
+    return False
 
 
 def _split_title_and_text(content: str) -> tuple[str, str]:
     stripped = content.strip()
-    if not stripped:
+    if stripped.startswith("TITLE:"):
+        lines = stripped.splitlines()
+        first_line = lines[0].strip()
+        title = first_line[len("TITLE:") :].strip()
+        marker = "\nARTICLE:\n"
+        if marker in stripped:
+            body = stripped.split(marker, 1)[1].strip()
+            return title, body
+
+    lines = [line.rstrip() for line in content.splitlines()]
+    nonempty = [line for line in lines if line.strip()]
+    if not nonempty:
         return "", ""
 
-    title = ""
-    body = stripped
-
-    for line in stripped.splitlines():
-        clean = line.strip()
-        if not clean:
-            continue
-        if clean.upper().startswith("TITLE:"):
-            title = clean.split(":", 1)[1].strip()
-            break
-
-    marker = "ARTICLE:"
-    marker_index = stripped.find(marker)
-    if marker_index >= 0:
-        body = stripped[marker_index + len(marker):].strip()
+    first_line = nonempty[0].strip()
+    if first_line.startswith("TITLE:"):
+        title = first_line[len("TITLE:") :].strip()
     else:
-        nonempty = [line.strip() for line in stripped.splitlines() if line.strip()]
-        if nonempty:
-            if not title:
-                title = nonempty[0].lstrip("#").strip()
-            body_lines = nonempty[1:] if len(nonempty) > 1 else nonempty
-            body = "\n".join(body_lines).strip()
+        title = first_line.lstrip("#").strip()
 
-    if not title:
-        nonempty = [line.strip() for line in stripped.splitlines() if line.strip()]
-        if nonempty:
-            title = nonempty[0].replace("TITLE:", "", 1).strip()
+    if len(nonempty) == 1:
+        return title, title
 
+    body_start = lines.index(nonempty[1])
+    body = "\n".join(lines[body_start:]).strip()
     return title, body

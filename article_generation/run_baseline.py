@@ -59,10 +59,9 @@ def main() -> None:
         bundle = retrieval.fetch_article_bundle(article_id)
         passages = retrieval.retrieve_top_k(bundle, settings.top_k)
         prompt = prompting.build_baseline_prompt(bundle, passages)
-        generation_output = generation.generate(prompt)
+        generation_output = generation.generate(prompt, target_title=bundle.article_title)
 
-        generated_title = generation_output.title or bundle.article_title
-
+        generated_title = bundle.article_title
         metrics = evaluation.evaluate(
             generated_title=generated_title,
             generated_text=generation_output.text,
@@ -100,7 +99,8 @@ def main() -> None:
             f"[{processed}/{len(article_ids)}] "
             f"article_id={bundle.article_id} "
             f"title={bundle.article_title!r} "
-            f"generated_title={generated_title!r} "
+            f"prompted_passages={len(passages)} "
+            f"available_passages={bundle.available_passage_count} "
             f"rouge1={metrics.rouge1_f1:.4f} "
             f"rouge2={metrics.rouge2_f1:.4f} "
             f"rougeL={metrics.rougel_f1:.4f} "
