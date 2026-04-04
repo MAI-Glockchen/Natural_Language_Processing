@@ -60,12 +60,16 @@ def main() -> None:
         passages = retrieval.retrieve_top_k(bundle, settings.top_k)
         prompt = prompting.build_baseline_prompt(bundle, passages)
         generation_output = generation.generate(prompt)
+
+        generated_title = generation_output.title or bundle.article_title
+
         metrics = evaluation.evaluate(
-            generated_title=generation_output.title or bundle.article_title,
+            generated_title=generated_title,
             generated_text=generation_output.text,
             reference_title=bundle.reference_title,
             reference_text=bundle.reference_text,
         )
+
         record = GeneratedArticleRecord(
             article_id=bundle.article_id,
             split=args.split,
@@ -75,7 +79,7 @@ def main() -> None:
             top_k=settings.top_k,
             topic=bundle.topic,
             index_file=bundle.index_file,
-            generated_title=generation_output.title or bundle.article_title,
+            generated_title=generated_title,
             generated_text=generation_output.text,
             reference_title=bundle.reference_title,
             reference_text=bundle.reference_text,
@@ -91,9 +95,20 @@ def main() -> None:
         )
         database.upsert_generated_article(record)
         processed += 1
+
         print(
-            f"[{processed}/{len(article_ids)}] article_id={bundle.article_id} title={bundle.article_title!r} "
-            f"rougeL={metrics.rougel_f1:.4f} bertscore={metrics.bertscore_f1:.4f}"
+            f"[{processed}/{len(article_ids)}] "
+            f"article_id={bundle.article_id} "
+            f"title={bundle.article_title!r} "
+            f"generated_title={generated_title!r} "
+            f"rouge1={metrics.rouge1_f1:.4f} "
+            f"rouge2={metrics.rouge2_f1:.4f} "
+            f"rougeL={metrics.rougel_f1:.4f} "
+            f"bertscore={metrics.bertscore_f1:.4f} "
+            f"title_sim={metrics.title_similarity:.4f} "
+            f"sections={metrics.section_count_generated}/{metrics.section_count_reference} "
+            f"section_diff={metrics.section_count_abs_diff} "
+            f"len_ratio={metrics.article_length_ratio:.4f}"
         )
 
 
