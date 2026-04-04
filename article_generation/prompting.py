@@ -8,19 +8,23 @@ class PromptBuilder:
         context_blocks = []
         for passage in passages:
             context_blocks.append(
-                f"[Passage {passage.rank} | key={passage.passage_key} | score={passage.score:.4f}]\n{passage.text.strip()}"
+                f"[Passage {passage.rank} | relevance={passage.score:.4f}]\n{passage.text.strip()}"
             )
         context = "\n\n".join(context_blocks)
 
         return (
-            "Write a Wikipedia-style article in plain text using only the supplied passages.\n"
-            "Do not mention the passages, retrieval, or source keys.\n"
-            "Be factual, neutral, and concise.\n"
-            "If details are uncertain or conflicting, prefer cautious wording.\n"
-            "Start with the article title alone on the first line, then a blank line, then the article body.\n"
-            "Do not output markdown fences.\n\n"
+            "Write a neutral Wikipedia-style article in plain text using only the supplied passages.\n"
+            "Do not mention the passages, retrieval, scores, or any source keys.\n"
+            "Do not invent facts. If a detail is uncertain or unsupported, leave it out.\n"
+            "Prefer an encyclopedic tone over a review or summary tone.\n"
+            "Write at least 4 paragraphs including a lead paragraph.\n"
+            "The first line must be exactly: TITLE: <article title>\n"
+            "Then a blank line.\n"
+            "Then a line that is exactly: ARTICLE:\n"
+            "Then the article body in plain text paragraphs.\n"
+            "Do not output markdown headings, bullet points, or code fences.\n\n"
             f"Target title: {bundle.article_title}\n"
-            f"Topic query used for retrieval: {bundle.topic}\n\n"
+            f"Retrieval topic: {bundle.topic}\n\n"
             "Retrieved passages:\n"
             f"{context}"
         )

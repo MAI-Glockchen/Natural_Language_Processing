@@ -33,7 +33,10 @@ class GenerationService:
             "messages": [
                 {
                     "role": "system",
-                    "content": "You write neutral encyclopedia-style articles from retrieved evidence.",
+                    "content": (
+                        "You write neutral encyclopedia-style articles from retrieved evidence. "
+                        "Follow the requested output format exactly."
+                    ),
                 },
                 {"role": "user", "content": prompt},
             ],
@@ -52,13 +55,36 @@ class GenerationService:
 
 
 def _split_title_and_text(content: str) -> tuple[str, str]:
-    lines = [line.rstrip() for line in content.splitlines()]
-    nonempty = [line for line in lines if line.strip()]
-    if not nonempty:
+    stripped = content.strip()
+    if not stripped:
         return "", ""
-    title = nonempty[0].strip().lstrip("#").strip()
-    if len(nonempty) == 1:
-        return title, title
-    body_start = lines.index(nonempty[1])
-    body = "\n".join(lines[body_start:]).strip()
+
+    title = ""
+    body = stripped
+
+    for line in stripped.splitlines():
+        clean = line.strip()
+        if not clean:
+            continue
+        if clean.upper().startswith("TITLE:"):
+            title = clean.split(":", 1)[1].strip()
+            break
+
+    marker = "ARTICLE:"
+    marker_index = stripped.find(marker)
+    if marker_index >= 0:
+        body = stripped[marker_index + len(marker):].strip()
+    else:
+        nonempty = [line.strip() for line in stripped.splitlines() if line.strip()]
+        if nonempty:
+            if not title:
+                title = nonempty[0].lstrip("#").strip()
+            body_lines = nonempty[1:] if len(nonempty) > 1 else nonempty
+            body = "\n".join(body_lines).strip()
+
+    if not title:
+        nonempty = [line.strip() for line in stripped.splitlines() if line.strip()]
+        if nonempty:
+            title = nonempty[0].replace("TITLE:", "", 1).strip()
+
     return title, body

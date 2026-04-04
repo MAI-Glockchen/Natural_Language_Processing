@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import replace
 
 from .config import Settings, get_settings
 from .db import Database
@@ -25,6 +24,8 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     settings = get_settings()
+    _print_settings(settings, args)
+
     database = Database(settings)
     database.ensure_schema()
 
@@ -106,6 +107,29 @@ def _resolve_article_ids(args: argparse.Namespace, settings: Settings) -> list[i
     if not article_ids:
         raise ValueError(f"No article ids found for split={args.split!r}")
     return article_ids
+
+
+def _print_settings(settings: Settings, args: argparse.Namespace) -> None:
+    print("Using article generation settings:")
+    print(f"  database_url={settings.database_url}")
+    print(f"  split_file={settings.split_file}")
+    print(f"  index_dir={settings.index_dir}")
+    print(f"  embedding_model_name={settings.embedding_model_name}")
+    print(f"  title_embedding_model_name={settings.title_embedding_model_name}")
+    print(f"  embedding_device={settings.embedding_device}")
+    print(f"  normalize_embeddings={settings.normalize_embeddings}")
+    print(f"  llm_base_url={settings.llm_base_url}")
+    print(f"  model_name={settings.model_name}")
+    print(f"  llm_timeout_seconds={settings.llm_timeout_seconds}")
+    print(f"  generation_temperature={settings.generation_temperature}")
+    print(f"  generation_max_tokens={settings.generation_max_tokens}")
+    print(f"  top_k={settings.top_k}")
+    print(f"  prompt_version={settings.prompt_version}")
+    print("Run arguments:")
+    print(f"  ensure_schema_only={args.ensure_schema_only}")
+    print(f"  split={args.split}")
+    print(f"  article_id={args.article_id}")
+    print(f"  limit={args.limit}")
 
 
 if __name__ == "__main__":

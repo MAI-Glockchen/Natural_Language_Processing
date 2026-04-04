@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -96,7 +97,7 @@ class RetrievalService:
             raise FileNotFoundError(f"Missing FAISS index: {index_path}")
 
         index = faiss.read_index(str(index_path))
-        query = self._encode_query(bundle.topic)
+        query = self._encode_query(self._build_query_text(bundle))
         k = min(top_k, index.ntotal)
         scores, row_ids = index.search(query, k)
         faiss_rows = [int(row_id) for row_id in row_ids[0] if int(row_id) >= 0]
@@ -141,6 +142,37 @@ class RetrievalService:
                 )
             )
         return passages
+
+    def _build_query_text(self, bundle: ArticleBundle) -> str:
+        parts = [bundle.article_title.strip(), bundle.topic.strip()]
+        parts.extend(self._candidate_terms(bundle.candidates_json))
+        return "\n".join(part for part in parts if part)
+
+    def _candidate_terms(self, candidates_json: str | None, limit: int = 3) -> list[str]:
+        if not candidates_json:
+            return []
+        try:
+            payload = json.loads(candidates_json)
+        except json.JSONDecodeError:
+            return []
+
+        terms: list[str] = []
+        if not isinstance(payload, list):
+            return terms
+
+        for item in payload:
+            if not isinstance(item, list) or not item:
+                continue
+            term = str(item[0]).strip()
+            if not term:
+                continue
+            lowered = term.lower()
+            if any(existing.lower() == lowered for existing in terms):
+                continue
+            terms.append(term)
+            if len(terms) >= limit:
+                break
+        return terms
 
     def _encode_query(self, text: str) -> np.ndarray:
         vector = self._encoder.encode(
