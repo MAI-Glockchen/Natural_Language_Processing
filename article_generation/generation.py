@@ -40,7 +40,7 @@ class GenerationService:
             temperature=self._temperature,
         ).strip()
 
-        if not _looks_like_structured_output(content) or _is_bad_article_body(content, target_title):
+        if not _looks_like_structured_output(content) or _is_bad_article_body(content):
             repair_prompt = (
                 f"Rewrite the following into a neutral encyclopedia-style prose article about {target_title}.\n"
                 f"The title must be exactly: {target_title}\n"
@@ -63,7 +63,7 @@ class GenerationService:
             ).strip()
 
         title, text = _split_title_and_text(content)
-        if not text or _is_bad_article_body(content, target_title):
+        if not text or _is_bad_article_body(content):
             raise ValueError("Model output did not contain a valid article body")
 
         return GenerationOutput(title=title, text=text, raw_response=content)
@@ -91,9 +91,8 @@ def _looks_like_structured_output(content: str) -> bool:
     return stripped.startswith("TITLE:") and "\nARTICLE:\n" in stripped
 
 
-def _is_bad_article_body(content: str, target_title: str) -> bool:
+def _is_bad_article_body(content: str) -> bool:
     lowered = content.lower()
-    title_lower = target_title.lower()
 
     bad_markers = (
         "document:",
@@ -110,10 +109,6 @@ def _is_bad_article_body(content: str, target_title: str) -> bool:
 
     _, body = _split_title_and_text(content)
     if not body:
-        return True
-
-    body_lower = body.lower()
-    if title_lower not in body_lower[:800]:
         return True
 
     lines = [line.strip() for line in body.splitlines() if line.strip()]

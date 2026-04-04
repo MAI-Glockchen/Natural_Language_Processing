@@ -1,6 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import cProfile
+import pstats
+from dataclasses import dataclass
+from pathlib import Path
+from time import perf_counter
 
 from .config import Settings, get_settings
 from .db import Database
@@ -12,25 +17,74 @@ from .retrieval import RetrievalService
 from .splits import SplitRepository
 
 
+@dataclass(slots=True)
+class StageTimings:
+    fetch_bundle_seconds: float = 0.0
+    retrieve_seconds: float = 0.0
+    prompt_seconds: float = 0.0
+    generate_seconds: float = 0.0
+    evaluate_seconds: float = 0.0
+    upsert_seconds: float = 0.0
+
+    @property
+    def total_seconds(self) -> float:
+        return (
+            self.fetch_bundle_seconds
+            + self.retrieve_seconds
+            + self.prompt_seconds
+            + self.generate_seconds
+            + self.evaluate_seconds
+            + self.upsert_seconds
+        )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run baseline article generation")
     parser.add_argument("--ensure-schema-only", action="store_true")
     parser.add_argument("--split", default="validation")
     parser.add_argument("--article-id", type=int)
     parser.add_argument("--limit", type=int, default=0)
+    parser.add_argument("--profile", action="store_true", help="Enable cProfile for the whole run")
+    parser.add_argument(
+        "--profile-sort",
+        default="cumulative",
+        choices=["cumulative", "tottime", "ncalls", "time"],
+        help="Sort order for cProfile output",
+    )
+    parser.add_argument(
+        "--profile-top",
+        type=int,
+        default=40,
+        help="How many cProfile rows to print",
+    )
+    parser.add_argument(
+        "--profile-dump",
+        type=Path,
+        help="Optional path to dump raw cProfile stats",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    if args.profile:
+        _run_with_cprofile(args)
+    else:
+        _run(args)
+
+
+def _run(args: argparse.Namespace) -> None:
+    run_started = perf_counter()
     settings = get_settings()
     _print_settings(settings, args)
 
+    init_started = perf_counter()
     database = Database(settings)
     database.ensure_schema()
 
     if args.ensure_schema_only:
         print("generated_articles schema is ready")
+        print(f"[timing] total={perf_counter() - run_started:.3f}s")
         return
 
     retrieval = RetrievalService(
@@ -52,22 +106,43 @@ def main() -> None:
         max_tokens=settings.generation_max_tokens,
     )
     prompting = PromptBuilder()
+    init_seconds = perf_counter() - init_started
 
+    resolve_started = perf_counter()
     article_ids = _resolve_article_ids(args, settings)
+    resolve_seconds = perf_counter() - resolve_started
+
     processed = 0
+    cumulative = StageTimings()
     for article_id in article_ids:
+        article_started = perf_counter()
+
+        started = perf_counter()
         bundle = retrieval.fetch_article_bundle(article_id)
+        fetch_bundle_seconds = perf_counter() - started
+
+        started = perf_counter()
         passages = retrieval.retrieve_top_k(bundle, settings.top_k)
+        retrieve_seconds = perf_counter() - started
+
+        started = perf_counter()
         prompt = prompting.build_baseline_prompt(bundle, passages)
+        prompt_seconds = perf_counter() - started
+
+        started = perf_counter()
         generation_output = generation.generate(prompt, target_title=bundle.article_title)
+        generate_seconds = perf_counter() - started
 
         generated_title = bundle.article_title
+
+        started = perf_counter()
         metrics = evaluation.evaluate(
             generated_title=generated_title,
             generated_text=generation_output.text,
             reference_title=bundle.reference_title,
             reference_text=bundle.reference_text,
         )
+        evaluate_seconds = perf_counter() - started
 
         record = GeneratedArticleRecord(
             article_id=bundle.article_id,
@@ -92,7 +167,21 @@ def main() -> None:
             section_count_abs_diff=metrics.section_count_abs_diff,
             article_length_ratio=metrics.article_length_ratio,
         )
+
+        started = perf_counter()
         database.upsert_generated_article(record)
+        upsert_seconds = perf_counter() - started
+
+        timings = StageTimings(
+            fetch_bundle_seconds=fetch_bundle_seconds,
+            retrieve_seconds=retrieve_seconds,
+            prompt_seconds=prompt_seconds,
+            generate_seconds=generate_seconds,
+            evaluate_seconds=evaluate_seconds,
+            upsert_seconds=upsert_seconds,
+        )
+        _accumulate_timings(cumulative, timings)
+
         processed += 1
 
         print(
@@ -101,6 +190,15 @@ def main() -> None:
             f"title={bundle.article_title!r} "
             f"prompted_passages={len(passages)} "
             f"available_passages={bundle.available_passage_count} "
+            f"prompt_chars={len(prompt)} "
+            f"generated_chars={len(generation_output.text)} "
+            f"fetch_bundle={fetch_bundle_seconds:.3f}s "
+            f"retrieve={retrieve_seconds:.3f}s "
+            f"prompt={prompt_seconds:.3f}s "
+            f"generate={generate_seconds:.3f}s "
+            f"evaluate={evaluate_seconds:.3f}s "
+            f"upsert={upsert_seconds:.3f}s "
+            f"article_total={perf_counter() - article_started:.3f}s "
             f"rouge1={metrics.rouge1_f1:.4f} "
             f"rouge2={metrics.rouge2_f1:.4f} "
             f"rougeL={metrics.rougel_f1:.4f} "
@@ -110,6 +208,45 @@ def main() -> None:
             f"section_diff={metrics.section_count_abs_diff} "
             f"len_ratio={metrics.article_length_ratio:.4f}"
         )
+
+    total_seconds = perf_counter() - run_started
+    print("Timing summary:")
+    print(f"  init={init_seconds:.3f}s")
+    print(f"  resolve_article_ids={resolve_seconds:.3f}s")
+    print(f"  fetch_bundle_total={cumulative.fetch_bundle_seconds:.3f}s")
+    print(f"  retrieve_total={cumulative.retrieve_seconds:.3f}s")
+    print(f"  prompt_total={cumulative.prompt_seconds:.3f}s")
+    print(f"  generate_total={cumulative.generate_seconds:.3f}s")
+    print(f"  evaluate_total={cumulative.evaluate_seconds:.3f}s")
+    print(f"  upsert_total={cumulative.upsert_seconds:.3f}s")
+    print(f"  grand_total={total_seconds:.3f}s")
+
+
+def _run_with_cprofile(args: argparse.Namespace) -> None:
+    profiler = cProfile.Profile()
+    profiler.enable()
+    try:
+        _run(args)
+    finally:
+        profiler.disable()
+
+    if args.profile_dump is not None:
+        args.profile_dump.parent.mkdir(parents=True, exist_ok=True)
+        profiler.dump_stats(str(args.profile_dump))
+        print(f"cProfile stats dumped to {args.profile_dump}")
+
+    stats = pstats.Stats(profiler).strip_dirs().sort_stats(args.profile_sort)
+    print("cProfile summary:")
+    stats.print_stats(args.profile_top)
+
+
+def _accumulate_timings(total: StageTimings, current: StageTimings) -> None:
+    total.fetch_bundle_seconds += current.fetch_bundle_seconds
+    total.retrieve_seconds += current.retrieve_seconds
+    total.prompt_seconds += current.prompt_seconds
+    total.generate_seconds += current.generate_seconds
+    total.evaluate_seconds += current.evaluate_seconds
+    total.upsert_seconds += current.upsert_seconds
 
 
 def _resolve_article_ids(args: argparse.Namespace, settings: Settings) -> list[int]:
@@ -145,6 +282,10 @@ def _print_settings(settings: Settings, args: argparse.Namespace) -> None:
     print(f"  split={args.split}")
     print(f"  article_id={args.article_id}")
     print(f"  limit={args.limit}")
+    print(f"  profile={args.profile}")
+    print(f"  profile_sort={args.profile_sort}")
+    print(f"  profile_top={args.profile_top}")
+    print(f"  profile_dump={args.profile_dump}")
 
 
 if __name__ == "__main__":
