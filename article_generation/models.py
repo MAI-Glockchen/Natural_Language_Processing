@@ -1,37 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
 
 
-@dataclass(frozen=True, slots=True)
-class ArticleTopicRecord:
-    article_id: int
-    url: str
-    title: str
-    topic: str
-    index_file: str
-
-
-@dataclass(frozen=True, slots=True)
-class PassageRecord:
-    faiss_row_id: int
-    passage_key: str
-    source_document_id: int
-    passage_idx: int
-    text: str
-
-
-@dataclass(frozen=True, slots=True)
-class ReferenceArticle:
-    article_id: int
-    wiki_article_id: int
-    title: str
-    url: str
-    reference_text: str
-
-
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class GeneratedArticleRecord:
     article_id: int
     split: str
@@ -54,4 +26,3 @@ class GeneratedArticleRecord:
     section_count_reference: int | None = None
     section_count_abs_diff: int | None = None
     article_length_ratio: float | None = None
-    created_at: datetime | None = None
