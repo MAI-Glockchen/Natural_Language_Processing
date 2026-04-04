@@ -4,9 +4,12 @@
 # -----------------------------
 
 import json
+import os
+from concurrent.futures import ProcessPoolExecutor
+from datetime import datetime
+from itertools import repeat
 from pathlib import Path
 from typing import Optional, List, Dict, Any
-from datetime import datetime
 
 import numpy as np
 
@@ -15,22 +18,77 @@ try:
 except Exception:
     faiss = None
 
-from db.session import get_session
 from db.models import Article, CitationPassage, ArticleTopicOutput, FaissPassageMap
-from .topic_inference import infer_topic
-from .vector_index import PassageVectorIndex
+from db.session import get_session
+from .topic_inference import (
+    infer_topic,
+    prepare_topic_inference_inputs,
+    finalize_topic_inference,
+)
+from .vector_index import PassageVectorIndex, batch_embed
+
+
+def _extract_article_runtime_fields(
+    article_data: Dict[str, Any],
+    min_passages: int,
+) -> Optional[Dict[str, Any]]:
+    passage_data = article_data.get("passage_data", [])
+
+    if len(passage_data) < min_passages:
+        return None
+
+    passages_text = [p["text"] for p in passage_data if p.get("text")]
+    if len(passages_text) < min_passages:
+        return None
+
+    title_hints = [article_data.get("article_title", "")]
+    title_hints.extend(
+        p.get("citation_title", "")
+        for p in passage_data
+        if p.get("citation_title")
+    )
+
+    passage_rows = [
+        {
+            "passage_id": p["passage_id"],
+            "text": p["text"],
+        }
+        for p in passage_data
+        if p.get("text")
+    ]
+
+    return {
+        "passage_data": passage_data,
+        "passages_text": passages_text,
+        "title_hints": title_hints,
+        "passage_rows": passage_rows,
+    }
+
+
+def _prepare_article_payload_worker(
+    article_data: Dict[str, Any],
+    min_passages: int,
+    infer_topic_kwargs: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    runtime = _extract_article_runtime_fields(article_data, min_passages)
+    if runtime is None:
+        return None
+
+    infer_kwargs = infer_topic_kwargs or {}
+    prepared = prepare_topic_inference_inputs(
+        passages=runtime["passages_text"],
+        title_hints=runtime["title_hints"],
+        **infer_kwargs,
+    )
+
+    return {
+        "prepared_topic": prepared,
+    }
 
 
 class TopicVectorPipeline:
     """
     Pipeline for inferring topics and building vector indices from database articles.
-
-    Workflow:
-        1. Load articles from database in batches
-        2. Extract passages from citations
-        3. Infer topics from passages
-        4. Build FAISS vector index with precomputed embeddings
-        5. Save indices and metadata to disk
     """
 
     def __init__(
@@ -41,17 +99,6 @@ class TopicVectorPipeline:
         use_db: bool = True,
         persist_outputs_to_db: bool = True,
     ):
-        """
-        Initialize pipeline.
-
-        Args:
-            output_dir: Directory to save FAISS indices and metadata
-            batch_size: Number of articles to process per batch
-            min_passages: Minimum passages required to process an article
-            use_db: If False, skip DB session and use process_mock_articles()
-            persist_outputs_to_db: Persist topic output and FAISS passage mapping
-                to dedicated DB tables.
-        """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -65,8 +112,11 @@ class TopicVectorPipeline:
             if self.session is not None
             else (get_session() if persist_outputs_to_db else None)
         )
+        self.preprocess_workers = max(1, (os.cpu_count() or 6) - 2)
+        self.gpu_article_batch_size = max(
+            1, int(os.getenv("TOPIC_PIPELINE_GPU_ARTICLE_BATCH", "10"))
+        )
 
-        # Tracking
         self.results = {
             "processed": 0,
             "skipped": 0,
@@ -76,19 +126,6 @@ class TopicVectorPipeline:
         }
 
     def _extract_passages_from_article(self, article: Article) -> Dict[str, Any]:
-        """
-        Extract all passages from an article's citations.
-
-        Returns:
-            {
-                'article_url': str,
-                'article_title': str,
-                'passage_data': [
-                    {'passage_id': str, 'text': str, 'citation_url': str},
-                    ...
-                ]
-            }
-        """
         passage_data = []
 
         for citation in article.citations:
@@ -207,68 +244,51 @@ class TopicVectorPipeline:
             self.output_session.rollback()
             print(f"[WARNING] Failed to persist topic/mapping outputs: {e}")
 
-    def _process_article_payload(
+    def _prepare_article_payload(
         self,
         article_data: Dict[str, Any],
         infer_topic_kwargs: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
-        """
-        Process an article payload with the same structure as DB-derived data.
+        prepared = _prepare_article_payload_worker(
+            article_data=article_data,
+            min_passages=self.min_passages,
+            infer_topic_kwargs=infer_topic_kwargs,
+        )
+        if prepared is None:
+            return None
 
-        Expected payload:
-            {
-                "article_url": str,
-                "article_title": str,
-                "passage_data": [
-                    {
-                        "passage_id": str,
-                        "text": str,
-                        "citation_url": str,
-                        "citation_title": str
-                    },
-                    ...
-                ]
-            }
-        """
+        runtime = _extract_article_runtime_fields(article_data, self.min_passages)
+        if runtime is None:
+            return None
+
+        return {
+            "article_data": article_data,
+            "prepared_topic": prepared["prepared_topic"],
+            "runtime": runtime,
+        }
+
+    def _finalize_prepared_article(
+        self,
+        prepared_article: Dict[str, Any],
+        candidate_embeddings: np.ndarray | None,
+        passage_embeddings: np.ndarray | None,
+    ) -> Optional[Dict[str, Any]]:
         try:
-            passage_data = article_data.get("passage_data", [])
+            article_data = prepared_article["article_data"]
+            runtime = prepared_article["runtime"]
 
-            if len(passage_data) < self.min_passages:
-                self.results["skipped"] += 1
-                return None
-
-            passages_text = [p["text"] for p in passage_data if p.get("text")]
-            if len(passages_text) < self.min_passages:
-                self.results["skipped"] += 1
-                return None
-
-            title_hints = [article_data.get("article_title", "")]
-            title_hints.extend(
-                p.get("citation_title", "")
-                for p in passage_data
-                if p.get("citation_title")
-            )
-
-            infer_kwargs = infer_topic_kwargs or {}
-            topic_result = infer_topic(
-                passages=passages_text,
-                title_hints=title_hints,
+            topic_result = finalize_topic_inference(
+                prepared=prepared_article["prepared_topic"],
+                passages=runtime["passages_text"],
+                title_hints=runtime["title_hints"],
+                candidate_embeddings=candidate_embeddings,
+                passage_embeddings=passage_embeddings,
                 return_passage_embeddings=True,
-                **infer_kwargs,
             )
 
             index = PassageVectorIndex()
-            passages_with_ids = [
-                {
-                    "passage_id": p["passage_id"],
-                    "text": p["text"],
-                }
-                for p in passage_data
-                if p.get("text")
-            ]
-
             index.add_many_precomputed(
-                passages=passages_with_ids,
+                passages=runtime["passage_rows"],
                 vectors=topic_result["passage_embeddings"],
             )
 
@@ -279,10 +299,7 @@ class TopicVectorPipeline:
                 faiss.write_index(index._faiss_index, str(index_path))
 
             embedding_dim = 0
-            if (
-                "passage_embeddings" in topic_result
-                and len(topic_result["passage_embeddings"]) > 0
-            ):
+            if len(topic_result["passage_embeddings"]) > 0:
                 embedding_dim = int(topic_result["passage_embeddings"].shape[1])
 
             metadata = {
@@ -290,7 +307,7 @@ class TopicVectorPipeline:
                 "article_title": article_data.get("article_title", "unknown"),
                 "topic": topic_result["topic"],
                 "candidates": topic_result["candidates"],
-                "num_passages": len(passages_with_ids),
+                "num_passages": len(runtime["passage_rows"]),
                 "index_file": index_filename,
                 "index_backend": index.get_index_backend(),
                 "embedding_dim": embedding_dim,
@@ -299,7 +316,70 @@ class TopicVectorPipeline:
             self._persist_outputs(
                 article_data=article_data,
                 metadata=metadata,
-                passage_data=passage_data,
+                passage_data=runtime["passage_data"],
+            )
+
+            self.results["articles"].append(metadata)
+            self.results["processed"] += 1
+            return metadata
+        except Exception as e:
+            print(f"[ERROR] Failed finalizing article payload: {e}")
+            self.results["failed"] += 1
+            return None
+
+    def _process_article_payload(
+        self,
+        article_data: Dict[str, Any],
+        infer_topic_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        try:
+            prepared_article = self._prepare_article_payload(
+                article_data=article_data,
+                infer_topic_kwargs=infer_topic_kwargs,
+            )
+            if prepared_article is None:
+                self.results["skipped"] += 1
+                return None
+
+            runtime = prepared_article["runtime"]
+            topic_result = infer_topic(
+                passages=runtime["passages_text"],
+                title_hints=runtime["title_hints"],
+                return_passage_embeddings=True,
+                **(infer_topic_kwargs or {}),
+            )
+
+            index = PassageVectorIndex()
+            index.add_many_precomputed(
+                passages=runtime["passage_rows"],
+                vectors=topic_result["passage_embeddings"],
+            )
+
+            index_filename = f"{len(self.results['articles'])}_article.faiss"
+            index_path = self.output_dir / index_filename
+
+            if index._faiss_index is not None and faiss is not None:
+                faiss.write_index(index._faiss_index, str(index_path))
+
+            embedding_dim = 0
+            if len(topic_result["passage_embeddings"]) > 0:
+                embedding_dim = int(topic_result["passage_embeddings"].shape[1])
+
+            metadata = {
+                "article_url": article_data.get("article_url", "unknown"),
+                "article_title": article_data.get("article_title", "unknown"),
+                "topic": topic_result["topic"],
+                "candidates": topic_result["candidates"],
+                "num_passages": len(runtime["passage_rows"]),
+                "index_file": index_filename,
+                "index_backend": index.get_index_backend(),
+                "embedding_dim": embedding_dim,
+            }
+
+            self._persist_outputs(
+                article_data=article_data,
+                metadata=metadata,
+                passage_data=runtime["passage_data"],
             )
 
             self.results["articles"].append(metadata)
@@ -315,16 +395,6 @@ class TopicVectorPipeline:
         article: Article,
         infer_topic_kwargs: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
-        """
-        Process a single article: infer topic and build vector index.
-
-        Args:
-            article: Article object from database
-            infer_topic_kwargs: Additional kwargs for infer_topic()
-
-        Returns:
-            Metadata dict with topic, candidates, and index path, or None if failed
-        """
         article_data = self._extract_passages_from_article(article)
         return self._process_article_payload(
             article_data=article_data,
@@ -337,17 +407,6 @@ class TopicVectorPipeline:
         infer_topic_kwargs: Optional[Dict[str, Any]] = None,
         verbose: bool = True,
     ) -> List[Dict[str, Any]]:
-        """
-        Process a batch of articles.
-
-        Args:
-            articles: List of Article objects
-            infer_topic_kwargs: Additional kwargs for infer_topic()
-            verbose: Print progress
-
-        Returns:
-            List of metadata dicts for successfully processed articles
-        """
         batch_results = []
 
         for i, article in enumerate(articles, 1):
@@ -367,18 +426,6 @@ class TopicVectorPipeline:
         infer_topic_kwargs: Optional[Dict[str, Any]] = None,
         verbose: bool = True,
     ) -> Dict[str, Any]:
-        """
-        Process all articles from database in batches.
-
-        Args:
-            limit: Maximum articles to process (None = all)
-            skip: Number of articles to skip
-            infer_topic_kwargs: Additional kwargs for infer_topic()
-            verbose: Print progress
-
-        Returns:
-            Summary dict with processing results
-        """
         if not self.use_db or self.session is None:
             raise RuntimeError(
                 "process_all() requires DB access. "
@@ -414,9 +461,7 @@ class TopicVectorPipeline:
                 batch_articles, infer_topic_kwargs=infer_topic_kwargs, verbose=verbose
             )
 
-        # Save summary
         self._save_summary()
-
         return self.results
 
     def process_mock_articles(
@@ -425,52 +470,132 @@ class TopicVectorPipeline:
         infer_topic_kwargs: Optional[Dict[str, Any]] = None,
         verbose: bool = True,
     ) -> Dict[str, Any]:
-        """
-        Process a hardcoded/mock article list with DB-like structure.
-
-        Args:
-            mock_articles: List of article payloads matching _extract_passages output
-            infer_topic_kwargs: Additional kwargs for infer_topic()
-            verbose: Print progress
-
-        Returns:
-            Summary dict with processing results
-        """
         total_articles = len(mock_articles)
         if verbose:
             print(
                 f"[INFO] Processing {total_articles} mock articles "
-                f"(batch size: {self.batch_size})"
+                f"(batch size: {self.batch_size}, preprocess workers: {self.preprocess_workers}, "
+                f"gpu article batch: {self.gpu_article_batch_size})"
             )
 
-        for batch_start in range(0, total_articles, self.batch_size):
-            batch_end = min(batch_start + self.batch_size, total_articles)
-            batch_articles = mock_articles[batch_start:batch_end]
+        with ProcessPoolExecutor(max_workers=self.preprocess_workers) as executor:
+            for batch_start in range(0, total_articles, self.batch_size):
+                batch_end = min(batch_start + self.batch_size, total_articles)
+                batch_articles = mock_articles[batch_start:batch_end]
 
-            if verbose:
-                print(
-                    f"\n[BATCH {batch_start // self.batch_size + 1}] "
-                    f"Processing mock articles {batch_start}-{batch_end}/{total_articles}"
-                )
-
-            for i, article_data in enumerate(batch_articles, 1):
                 if verbose:
-                    title = article_data.get("article_title", "unknown")
-                    print(f"[{i}/{len(batch_articles)}] Processing {title[:50]}...")
+                    print(
+                        f"\n[BATCH {batch_start // self.batch_size + 1}] "
+                        f"Processing mock articles {batch_start}-{batch_end}/{total_articles}"
+                    )
 
-                self._process_article_payload(
-                    article_data=article_data,
-                    infer_topic_kwargs=infer_topic_kwargs,
+                prepared_batch = list(
+                    executor.map(
+                        _prepare_article_payload_worker,
+                        batch_articles,
+                        repeat(self.min_passages),
+                        repeat(infer_topic_kwargs),
+                    )
                 )
+
+                valid_prepared: list[Dict[str, Any]] = []
+                skipped_in_batch = 0
+
+                for i, prepared_light in enumerate(prepared_batch, 1):
+                    article_data = batch_articles[i - 1]
+                    if verbose:
+                        title = article_data.get("article_title", "unknown")
+                        print(f"[{i}/{len(batch_articles)}] Processing {title[:50]}...")
+
+                    if prepared_light is None:
+                        skipped_in_batch += 1
+                        continue
+
+                    runtime = _extract_article_runtime_fields(
+                        article_data,
+                        self.min_passages,
+                    )
+                    if runtime is None:
+                        skipped_in_batch += 1
+                        continue
+
+                    valid_prepared.append(
+                        {
+                            "article_data": article_data,
+                            "prepared_topic": prepared_light["prepared_topic"],
+                            "runtime": runtime,
+                        }
+                    )
+
+                self.results["skipped"] += skipped_in_batch
+
+                if not valid_prepared:
+                    continue
+
+                for gpu_start in range(0, len(valid_prepared), self.gpu_article_batch_size):
+                    gpu_chunk = valid_prepared[
+                        gpu_start : gpu_start + self.gpu_article_batch_size
+                    ]
+
+                    all_candidate_labels: list[str] = []
+                    all_passages_text: list[str] = []
+                    candidate_counts: list[int] = []
+                    passage_counts: list[int] = []
+
+                    for prepared_article in gpu_chunk:
+                        candidate_labels = list(
+                            prepared_article["prepared_topic"]["top_candidates"].keys()
+                        )
+                        passages_text = prepared_article["runtime"]["passages_text"]
+
+                        all_candidate_labels.extend(candidate_labels)
+                        all_passages_text.extend(passages_text)
+                        candidate_counts.append(len(candidate_labels))
+                        passage_counts.append(len(passages_text))
+
+                    all_candidate_embeddings = (
+                        batch_embed(all_candidate_labels)
+                        if all_candidate_labels
+                        else np.empty((0, 0), dtype=np.float32)
+                    )
+                    all_passage_embeddings = (
+                        batch_embed(all_passages_text)
+                        if all_passages_text
+                        else np.empty((0, 0), dtype=np.float32)
+                    )
+
+                    candidate_offset = 0
+                    passage_offset = 0
+
+                    for prepared_article, candidate_count, passage_count in zip(
+                        gpu_chunk, candidate_counts, passage_counts
+                    ):
+                        candidate_embeddings = None
+                        if candidate_count > 0:
+                            candidate_embeddings = all_candidate_embeddings[
+                                candidate_offset : candidate_offset + candidate_count
+                            ]
+                        passage_embeddings = None
+                        if passage_count > 0:
+                            passage_embeddings = all_passage_embeddings[
+                                passage_offset : passage_offset + passage_count
+                            ]
+
+                        self._finalize_prepared_article(
+                            prepared_article=prepared_article,
+                            candidate_embeddings=candidate_embeddings,
+                            passage_embeddings=passage_embeddings,
+                        )
+
+                        candidate_offset += candidate_count
+                        passage_offset += passage_count
 
         self._save_summary()
         return self.results
 
     def _save_summary(self) -> None:
-        """Save processing summary and metadata to JSON."""
         summary_path = self.output_dir / "summary.json"
 
-        # Make results JSON serializable
         results_copy = self.results.copy()
         results_copy["articles"] = [
             {
@@ -489,15 +614,6 @@ class TopicVectorPipeline:
             print(f"\n[INFO] Summary saved to {summary_path}")
 
     def load_index(self, article_idx: int) -> Optional[PassageVectorIndex]:
-        """
-        Load a saved FAISS index for an article.
-
-        Args:
-            article_idx: Index of article in results
-
-        Returns:
-            PassageVectorIndex with loaded FAISS index, or None if not found
-        """
         if article_idx >= len(self.results["articles"]):
             return None
 
@@ -520,7 +636,6 @@ class TopicVectorPipeline:
             return None
 
     def get_summary(self) -> Dict[str, Any]:
-        """Get processing summary."""
         return {
             "total_processed": self.results["processed"],
             "total_skipped": self.results["skipped"],

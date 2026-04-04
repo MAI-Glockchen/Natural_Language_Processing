@@ -8,8 +8,10 @@ A reusable pipeline for processing Wikipedia articles from the database, inferri
 ✅ **Topic Inference**: Automatically infer main topics from cited passages  
 ✅ **Vector Indexing**: Build FAISS indices for fast similarity search  
 ✅ **Optimization**: Reuse passage embeddings to avoid redundant computations  
-✅ **Persistence**: Save indices and metadata to disk  
+✅ **Persistence**: Save indices and metadata to disk or optionally persist mappings to DB  
 ✅ **Progress Tracking**: Monitor processing with detailed logging  
+✅ **Parallel Preprocessing**: CPU-bound preprocessing runs in multiple worker processes  
+✅ **GPU Micro-Batching**: Embeddings are computed on the GPU in article chunks for better throughput / memory balance  
 
 ---
 
@@ -18,22 +20,19 @@ A reusable pipeline for processing Wikipedia articles from the database, inferri
 ### Basic Usage
 
 ```python
-from pipeline.topic_vector_pipeline import TopicVectorPipeline
+from embedding_pipeline.topic_vector_pipeline import TopicVectorPipeline
 
-# Initialize pipeline
 pipeline = TopicVectorPipeline(
     output_dir="vector_indices",
     batch_size=10,
     min_passages=5,
 )
 
-# Process all articles from database
 results = pipeline.process_all(
-    limit=100,  # Process first 100 articles
+    limit=100,
     verbose=True,
 )
 
-# Get summary
 summary = pipeline.get_summary()
 print(f"Processed: {summary['total_processed']} articles")
 print(f"Output: {summary['output_dir']}")
@@ -42,10 +41,8 @@ print(f"Output: {summary['output_dir']}")
 ### Search in a Vector Index
 
 ```python
-# Load a saved index
 index = pipeline.load_index(article_idx=0)
 
-# Search for similar passages
 query = "climate change impact"
 results = index.search(query, top_k=5)
 
@@ -59,13 +56,16 @@ for result in results:
 ```python
 from db.session import get_session
 from db.models import Article
+from embedding_pipeline.topic_vector_pipeline import TopicVectorPipeline
 
 session = get_session()
 article = session.query(Article).first()
 
+pipeline = TopicVectorPipeline(output_dir="vector_indices", batch_size=10, min_passages=5)
+
 metadata = pipeline.process_article(
     article,
-    infer_topic_kwargs={'top_k': 5}
+    infer_topic_kwargs={"top_k": 5}
 )
 
 if metadata:
@@ -82,28 +82,35 @@ if metadata:
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `output_dir` | str | `"vector_indices"` | Directory to save FAISS indices |
-| `batch_size` | int | `10` | Articles per batch |
-| `min_passages` | int | `5` | Minimum passages to process article |
+| `batch_size` | int | `10` | Articles per outer batch |
+| `min_passages` | int | `5` | Minimum passages required to process an article |
+| `use_db` | bool | `True` | Use DB-backed article loading |
+| `persist_outputs_to_db` | bool | `True` | Persist topic output and FAISS mapping rows |
 
-### process_all() Parameters
+### Runtime Environment Variables
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `limit` | int | `None` | Max articles to process (None = all) |
-| `skip` | int | `0` | Articles to skip |
-| `infer_topic_kwargs` | dict | `{}` | Additional kwargs for `infer_topic()` |
-| `verbose` | bool | `True` | Print progress |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TOPIC_PIPELINE_LIMIT` | `10` | Max number of processable articles selected by the DB runner |
+| `TOPIC_PIPELINE_BATCH_SIZE` | `10` | Outer batch size used by the DB runner |
+| `TOPIC_PIPELINE_PREPROCESS_WORKERS` | `max(1, cpu_count - 2)` | Number of CPU worker processes for preprocessing |
+| `TOPIC_PIPELINE_GPU_ARTICLE_BATCH` | `10` | Number of articles embedded together on the GPU at once |
+| `TOPIC_PIPELINE_MIN_PASSAGES` | `5` | Minimum passages required per article |
+| `TOPIC_PIPELINE_OUTPUT_DIR` | `"vector_indices"` | Output directory |
+| `TOPIC_PIPELINE_PERSIST_DB` | `0` | Persist topic/index mapping outputs to DB when set to true-like values |
+| `TOPIC_EMBED_DEVICE` | `auto` | Embedding device: `auto`, `cpu`, or `cuda` |
+| `TOPIC_EMBED_BATCH_SIZE` | `64` | SentenceTransformer embedding batch size |
 
 ### infer_topic() Options
 
 Common parameters to pass in `infer_topic_kwargs`:
 
 ```python
-infer_topic_kwargs={
-    'top_k': 5,                          # Number of topic candidates
-    'mmr_diversity': 0.4,                # Diversity vs relevance (0-1)
-    'concept_cluster_threshold': 0.55,   # Merge similar concepts
-    'position_decay': 0.85,              # Earlier passages weighted more
+infer_topic_kwargs = {
+    "top_k": 5,
+    "mmr_diversity": 0.4,
+    "concept_cluster_threshold": 0.55,
+    "position_decay": 0.85,
 }
 ```
 
@@ -113,13 +120,13 @@ infer_topic_kwargs={
 
 ### Directory Layout
 
-```
+```text
 vector_indices/
-├── 0_article.faiss          # FAISS index for article 0
-├── 1_article.faiss          # FAISS index for article 1
+├── 0_article.faiss
+├── 1_article.faiss
 ├── 2_article.faiss
 ├── ...
-└── summary.json             # Metadata for all articles
+└── summary.json
 ```
 
 ### summary.json Example
@@ -129,7 +136,7 @@ vector_indices/
   "processed": 3,
   "skipped": 0,
   "failed": 0,
-  "timestamp": "2026-03-23T14:30:00",
+  "timestamp": "2026-04-02T12:30:00",
   "articles": [
     {
       "article_url": "https://en.wikipedia.org/wiki/Machine_learning",
@@ -142,7 +149,8 @@ vector_indices/
       ],
       "num_passages": 42,
       "index_file": "0_article.faiss",
-      "index_backend": "faiss"
+      "index_backend": "faiss",
+      "embedding_dim": 384
     }
   ]
 }
@@ -152,73 +160,70 @@ vector_indices/
 
 ## Workflow
 
-```
+```text
 Database Articles
        ↓
-Extract Passages (from Citations)
+Extract Passages
        ↓
-Infer Topics (from Passages)
+CPU Preprocessing (parallel worker processes)
        ↓
-Embed Passages (reuse topic embeddings)
+GPU Embedding (article micro-batches)
+       ↓
+Topic Finalization / Clustering
        ↓
 Build FAISS Index
        ↓
-Save to Disk
+Save to Disk / Optional DB Persistence
 ```
 
 ---
 
-## Example: Full Workflow
+## Example: DB Runner
 
-```python
-from pipeline.topic_vector_pipeline import TopicVectorPipeline
-
-# 1. Initialize
-pipeline = TopicVectorPipeline(
-    output_dir="my_indices",
-    batch_size=5,
-)
-
-# 2. Process articles
-results = pipeline.process_all(
-    limit=50,
-    infer_topic_kwargs={'top_k': 3},
-    verbose=True,
-)
-
-# 3. Get summary
-print(pipeline.get_summary())
-
-# 4. Load and search
-index = pipeline.load_index(0)
-results = index.search("query text", top_k=5)
-
-for r in results:
-    print(f"Score: {r['similarity_query_to_passage_score']:.4f}")
-    print(r['text'][:100])
+```bash
+TOPIC_PIPELINE_LIMIT=1000000 TOPIC_PIPELINE_BATCH_SIZE=10 TOPIC_PIPELINE_GPU_ARTICLE_BATCH=10 TOPIC_EMBED_DEVICE=cuda TOPIC_EMBED_BATCH_SIZE=64 uv run python -m embedding_pipeline.topic_vector_db_runner
 ```
+
+### Notes on Defaults
+
+These defaults were chosen as a stable baseline for a 16 GB RAM machine:
+
+- `TOPIC_PIPELINE_BATCH_SIZE=10`
+- `TOPIC_PIPELINE_GPU_ARTICLE_BATCH=10`
+- `TOPIC_EMBED_BATCH_SIZE=64`
+
+`TOPIC_PIPELINE_PREPROCESS_WORKERS` defaults to `max(1, cpu_count - 2)`.
 
 ---
 
 ## Performance Tips
 
-1. **Batch Size**: Larger batches (20-50) are faster but use more memory
-2. **FAISS**: Automatically used for efficient search when available
-3. **Embedding Reuse**: `return_passage_embeddings=True` avoids re-embedding
-4. **Database**: Close session when done to free resources
+1. **Increase `TOPIC_EMBED_BATCH_SIZE` first** if the GPU has headroom.
+2. **Reduce `TOPIC_PIPELINE_PREPROCESS_WORKERS` first** if RAM pressure is high.
+3. **`TOPIC_PIPELINE_GPU_ARTICLE_BATCH` affects both RAM and VRAM**, not just VRAM.
+4. **Larger outer `batch_size`** can improve throughput, but increases RAM use.
+5. **FAISS** is used automatically when available.
+6. **Passage embedding reuse** avoids re-embedding before index construction.
 
 ---
 
 ## Troubleshooting
 
-**Q: Index file not created?**  
-A: Check that at least `min_passages` passages exist for the article.
+**Q: Only 10 FAISS files are created.**  
+A: The DB runner defaults to `TOPIC_PIPELINE_LIMIT=10`. Set it explicitly higher.
 
 **Q: Search is slow?**  
-A: Make sure FAISS is installed (`pip install faiss-cpu`), otherwise uses brute-force.
+A: Ensure FAISS is installed. Without FAISS, search falls back to brute force.
 
 **Q: Out of memory?**  
-A: Reduce `batch_size` or process articles in smaller chunks with `limit` and `skip`.
+A: Reduce:
+- `TOPIC_PIPELINE_PREPROCESS_WORKERS`
+- `TOPIC_PIPELINE_BATCH_SIZE`
+- `TOPIC_PIPELINE_GPU_ARTICLE_BATCH`
+- `TOPIC_EMBED_BATCH_SIZE`
+
+**Q: CUDA is available but GPU utilization is low?**  
+A: That usually means CPU preprocessing / clustering is dominant, while GPU embedding runs in short bursts.
 
 ---
 
@@ -228,4 +233,4 @@ A: Reduce `batch_size` or process articles in smaller chunks with `limit` and `s
 python -m embedding_pipeline.topic_vector_demo
 ```
 
-This processes 10 articles and demonstrates topic inference and vector search.
+The demo uses `batch_size=10` and shows topic inference plus vector search on mock articles.

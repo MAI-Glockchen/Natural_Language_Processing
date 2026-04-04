@@ -2,7 +2,7 @@ services:
   postgres:
     image: postgres:18.3
     container_name: citation-postgres
-    restart: unless-stopped
+    restart: always
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-wiki}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}

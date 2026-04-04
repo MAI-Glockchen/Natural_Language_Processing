@@ -1,5 +1,6 @@
 import hashlib
 import math
+import os
 import re
 
 try:
@@ -13,6 +14,11 @@ except Exception:
     faiss = None
 
 try:
+    import torch
+except Exception:
+    torch = None
+
+try:
     from sentence_transformers import SentenceTransformer
 except Exception:
     SentenceTransformer = None
@@ -21,7 +27,24 @@ from utils.text_normalization import normalize_text
 
 
 DEFAULT_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+DEFAULT_EMBEDDING_DEVICE = os.getenv("TOPIC_EMBED_DEVICE", "auto").strip().lower()
+DEFAULT_EMBEDDING_BATCH_SIZE = max(
+    1, int(os.getenv("TOPIC_EMBED_BATCH_SIZE", "64"))
+)
 _MODEL_CACHE: dict = {}
+
+
+def _resolve_device() -> str:
+    if DEFAULT_EMBEDDING_DEVICE not in {"auto", "cpu", "cuda"}:
+        return "cuda" if torch is not None and torch.cuda.is_available() else "cpu"
+    if DEFAULT_EMBEDDING_DEVICE == "auto":
+        return "cuda" if torch is not None and torch.cuda.is_available() else "cpu"
+    if DEFAULT_EMBEDDING_DEVICE == "cuda":
+        if torch is None or not torch.cuda.is_available():
+            print("[WARNING] TOPIC_EMBED_DEVICE=cuda requested, but CUDA is unavailable. Falling back to CPU.")
+            return "cpu"
+        return "cuda"
+    return "cpu"
 
 
 def _get_model(model_name: str) -> "SentenceTransformer":
@@ -30,9 +53,15 @@ def _get_model(model_name: str) -> "SentenceTransformer":
             "sentence-transformers is not installed. "
             "Run: pip install sentence-transformers"
         )
-    if model_name not in _MODEL_CACHE:
-        _MODEL_CACHE[model_name] = SentenceTransformer(model_name)
-    return _MODEL_CACHE[model_name]
+
+    device = _resolve_device()
+    cache_key = (model_name, device)
+
+    if cache_key not in _MODEL_CACHE:
+        _MODEL_CACHE[cache_key] = SentenceTransformer(model_name, device=device)
+        print(f"[EMBED] Loaded model: {model_name} on device: {device}")
+
+    return _MODEL_CACHE[cache_key]
 
 
 def _fallback_embed(text: str, dim: int) -> list[float]:
@@ -63,7 +92,12 @@ def embed_text(
 
     if SentenceTransformer is not None:
         try:
-            vec = _get_model(model_name).encode(normalized, normalize_embeddings=True)
+            vec = _get_model(model_name).encode(
+                normalized,
+                normalize_embeddings=True,
+                convert_to_numpy=True,
+                show_progress_bar=False,
+            )
             return vec.tolist() if hasattr(vec, "tolist") else list(vec)
         except Exception as exc:
             if not use_fallback:
@@ -97,8 +131,9 @@ def batch_embed(
             vecs = _get_model(model_name).encode(
                 normalised,
                 normalize_embeddings=True,
-                batch_size=64,
+                batch_size=DEFAULT_EMBEDDING_BATCH_SIZE,
                 show_progress_bar=False,
+                convert_to_numpy=True,
             )
             return np.array(vecs, dtype="float32")
         except Exception as exc:
