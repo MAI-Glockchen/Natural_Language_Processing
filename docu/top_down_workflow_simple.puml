@@ -1,0 +1,21 @@
+@startuml
+skinparam activityWidth 80
+title Simplified Top-Down Workflow
+
+start
+
+:Data Setup\nLoad articles & citations;
+
+:Embedding Pipeline\nBuild FAISS indices;
+
+:Fetch Article Bundle\nRetrieve Passages;
+
+:Build Prompt;
+
+:Generate Article with LLM;
+
+:Evaluate Output;
+
+stop
+
+@enduml

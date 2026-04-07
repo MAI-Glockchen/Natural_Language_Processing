@@ -1,0 +1,30 @@
+@startuml
+' Allow mixing classes and folders
+allowmixing
+
+!define RECTANGLE class
+
+' Define containers
+RECTANGLE Postgres {
+  + Stores structured metadata:
+    - Articles
+    - Citations
+    - Passages
+    - FAISS mapping
+}
+
+RECTANGLE EmbeddingPipeline {
+  + Generates passage embeddings
+  + Builds FAISS indices
+  + Saves indices to /app/vector_indices
+  + Persists metadata to Postgres
+}
+
+' Shared volume
+folder "vector_indices (host ↔ container)" as VectorVolume
+
+' Relationships
+EmbeddingPipeline --> Postgres : Reads/Writes metadata
+EmbeddingPipeline --> VectorVolume : Writes FAISS indices
+
+@enduml
