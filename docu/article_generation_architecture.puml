@@ -1,0 +1,37 @@
+@startuml
+skinparam packageStyle rectangle
+
+package "Docker Engine" {
+  package "Postgres DB" {
+    component "Postgres DB" as Postgres
+  }
+
+  package "Embedding Pipeline Container" {
+    component "Embedding Pipeline" as EmbeddingPipeline
+    component "FAISS indexes\n(vector_indices/)" as FAISS
+  }
+}
+
+package "Application" {
+  component "article_generation" as ArticleGeneration
+}
+
+component "LLM API\n(OpenAI-compatible)" as LLM
+
+Postgres -r-> EmbeddingPipeline : reads articles, citations, passages
+EmbeddingPipeline -l-> Postgres : writes article_topic_outputs, faiss_passage_map
+EmbeddingPipeline -> FAISS : writes index files
+
+ArticleGeneration ---> Postgres : reads articles, topic metadata, passage map, reference wiki text
+ArticleGeneration ---> FAISS : loads index files
+ArticleGeneration --> LLM : sends prompt, receives generated article
+ArticleGeneration ---> Postgres : writes generated_articles
+
+note left of ArticleGeneration
+Currently not defined as a dedicated
+Docker Compose service.
+Can run from the repository
+or inside the same Docker image.
+end note
+
+@enduml

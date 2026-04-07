@@ -1,0 +1,70 @@
+@startuml
+' Optional styling
+hide circle
+skinparam linetype ortho
+
+entity "articles" as articles {
+  +article_id : int <<PK>>
+  --
+  url : string <<UNIQUE>>
+  title : string
+  created_at : datetime
+}
+
+entity "citations" as citations {
+  +citation_id : int <<PK>>
+  --
+  url : string <<UNIQUE>>
+  title : string
+  created_at : datetime
+}
+
+entity "article_citations" as article_citations {
+  +article_id : int <<PK, FK>>
+  +citation_id : int <<PK, FK>>
+}
+
+entity "citation_passages" as citation_passages {
+  +passage_id : int <<PK>>
+  --
+  citation_id : int <<FK>>
+  content : text
+}
+
+entity "article_topic_outputs" as article_topic_outputs {
+  +topic_output_id : int <<PK>>
+  --
+  article_id : int <<FK, UNIQUE>>
+  topic : string
+  candidates_json : text
+  index_file : string
+  index_backend : string
+  embedding_dim : int
+  created_at : datetime
+  updated_at : datetime
+}
+
+entity "faiss_passage_map" as faiss_passage_map {
+  +map_id : int <<PK>>
+  --
+  article_id : int <<FK>>
+  faiss_row_id : int
+  index_file : string
+  passage_key : string
+  created_at : datetime
+  --
+  UNIQUE(article_id, faiss_row_id)
+}
+
+' Relationships
+
+articles ||--o{ article_citations : has
+citations ||--o{ article_citations : has
+
+citations ||--o{ citation_passages : contains
+
+articles ||--|| article_topic_outputs : has
+
+articles ||--o{ faiss_passage_map : maps
+
+@enduml
