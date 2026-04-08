@@ -1,0 +1,13 @@
+@startuml
+title FAISS Embedding Pipeline Flow
+left to right direction
+
+rectangle "Collect passages\nper article" as A
+rectangle "Embed + normalize vectors\nModel: sentence-transformers/all-MiniLM-L6-v2" as B
+rectangle "Build FAISS files" as C
+rectangle "Save .faiss + metadata/mappings\nfor query-to-passage lookup" as D
+
+A --> B
+B --> C
+C --> D
+@enduml
