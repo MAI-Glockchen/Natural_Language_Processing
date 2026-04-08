@@ -1,0 +1,43 @@
+@startuml
+title Topic Inference Flow
+left to right direction
+
+rectangle "Input passages\n+ title hints" as A
+rectangle "Normalize text" as B
+rectangle "Extract candidate phrases\n(1-gram, 2-gram, 3-gram, NER, title)" as C
+
+rectangle "Score candidates\n(freq + position + title boost)" as D
+rectangle "Filter noise + deduplicate" as E
+rectangle "Embed candidates\nand passages" as F
+
+rectangle "Cluster semantic\ncandidates" as G
+rectangle "Combine scores +\nMMR rerank" as H
+rectangle "Pick best topic" as I
+
+rectangle "Output topic +\nranked candidates" as J
+
+A --> B
+B --> C
+C --> D
+D --> E
+E --> F
+F --> G
+G --> H
+H --> I
+I --> J
+
+A -[hidden]right-> B
+B -[hidden]right-> C
+D -[hidden]right-> E
+E -[hidden]right-> F
+G -[hidden]right-> H
+H -[hidden]right-> I
+
+A -[hidden]down-> D
+B -[hidden]down-> E
+C -[hidden]down-> F
+D -[hidden]down-> G
+E -[hidden]down-> H
+F -[hidden]down-> I
+H -[hidden]down-> J
+@enduml
