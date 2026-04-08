@@ -1,11 +1,13 @@
 @startuml
 title FAISS Embedding Pipeline Flow
 left to right direction
+skinparam defaultFontSize 32
+skinparam titleFontSize 32
 
 rectangle "Collect passages\nper article" as A
-rectangle "Embed + normalize vectors\nModel: sentence-transformers/all-MiniLM-L6-v2" as B
+rectangle "Embed + normalize\nvectors\nModel:\nsentence-transformers/\nall-MiniLM-L6-v2" as B
 rectangle "Build FAISS files" as C
-rectangle "Save .faiss + metadata/mappings\nfor query-to-passage lookup" as D
+rectangle "Save .faiss +\nmetadata/mappings\nfor query-to-\npassage lookup" as D
 
 A --> B
 B --> C
