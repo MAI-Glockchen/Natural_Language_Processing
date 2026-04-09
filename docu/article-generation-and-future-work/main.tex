@@ -166,41 +166,39 @@ Then the article body in plain prose paragraphs.\par
 \hspace*{-0.025\textwidth}%
 \begin{minipage}{1.05\textwidth}
 \begin{block}{Conclusion}
-\justifying\scriptsize
-The implemented system already provides a complete retrieval-to-generation baseline: it loads article metadata and reference text from Postgres, retrieves evidence from FAISS-indexed passages, builds a constrained prompt, generates a Wikipedia-style article draft with a local LLM, evaluates the result against the withheld reference article, and stores outputs plus metrics for reproducible comparison.
+\scriptsize
+\justifying
+With this approach it is possible -- with reasonable accuracy -- to reconstruct a Wikipeda article just from its citations.
 \end{block}
 
 \vspace{0.08cm}
 \begin{columns}[T,totalwidth=\linewidth,onlytextwidth]
-\column{0.495\linewidth}
-\begin{block}{What already works well}
+\column{0.47\linewidth}
+\begin{block}{Weaknesses}
 \scriptsize
 \begin{itemize}
-  \item end-to-end reproducible pipeline
-  \item explicit grounding in retrieved passages
-  \item lexical, semantic, and structural evaluation
-  \item resume-friendly batch processing via upserts
+  \item A majority of citations is unavailable, mostly through some kind of paywalls. There were also cases of webcrawler blocks.
+  \item Runtimes are absurdly long for consumer hardware.
+  \item Article generation often aborts or is much too short.
 \end{itemize}
 \end{block}
 
-\column{0.495\linewidth}
-\begin{block}{Future work}
+\column{0.47\linewidth}
+\begin{block}{Strengths}
 \scriptsize
 \begin{itemize}
-  \item section-wise RAG instead of single-shot generation
-  \item better topic inference and query expansion
-  \item stronger redundancy reduction before prompting
-  \item tuning of $k$, prompt length, and model choice
-  \item richer factuality checks beyond overlap metrics
+  \item Topic inference works surprisingly well.
+  \item Easily expandable. We have a robust foundation, and were always limited by time, never by ideas.
 \end{itemize}
 \end{block}
 \end{columns}
 
 \vspace{0.04cm}
-\begin{alertblock}{Takeaway}
+\begin{alertblock}{Future Work}
 \scriptsize
-The strongest next gains will likely come from better retrieval structure and more controlled generation rather than from rebuilding the pipeline itself.
+Strong evaluation gains are expected from a better retrieval structure and more controlled generation rather than from rebuilding the pipeline itself.
 \end{alertblock}
+
 \end{minipage}
 \end{frame}
 
