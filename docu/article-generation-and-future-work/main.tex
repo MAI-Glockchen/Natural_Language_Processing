@@ -12,6 +12,7 @@
 \usetikzlibrary{arrows.meta,positioning,calc,fit}
 \usepackage{amsmath}
 \usepackage{ragged2e}
+\usepackage{multicol}
 
 \definecolor{wikiblue}{RGB}{51,102,204}
 \definecolor{wikidark}{RGB}{32,33,34}
@@ -20,6 +21,7 @@
 \definecolor{wikibox}{RGB}{248,249,250}
 \definecolor{wikibox2}{RGB}{234,236,240}
 \definecolor{wikilightblue}{RGB}{238,243,255}
+\definecolor{wine}{RGB}{114,47,55}
 
 \setbeamercolor{normal text}{fg=wikidark,bg=white}
 \setbeamercolor{title}{fg=wikidark}
@@ -74,6 +76,7 @@
 
 \begin{document}
 
+%--- Slide 1 ---
 \begin{frame}[t]{Article Generation Pipeline}
 \hspace*{-0.035\textwidth}%
 \begin{minipage}{1.07\textwidth}
@@ -111,18 +114,53 @@
 \vspace{0.04cm}
 \begin{block}{Cost profile}
 \scriptsize
-Generation dominates runtime. Retrieval, prompt assembly, and database writes are much cheaper, while larger $k$ and larger token budgets mainly increase latency.
+Generation dominates runtime. Retrieval, prompt assembly, and database writes are much cheaper, while larger $k$ (the number of retrieved passages included in the prompt) and larger token budgets mainly increase latency.
 \end{block}
 
 \vspace{0.04cm}
-\begin{block}{Stored output}
+\begin{block}{LLM used (With Ollama)}
 \scriptsize
-Each run persists the generated article together with the withheld reference text and evaluation metrics, enabling direct comparison across prompts, models, and retrieval settings.\\ With more project time, this can be used for improving the prompts/structure.
+Started with gemma-2-2b, then went with Phi-3.5-mini-instruct for 16K context window.
 \end{block}
 \end{columns}
 \end{minipage}
 \end{frame}
 
+%--- Slide 2 ---
+
+\begin{frame}[t]{The Prompt}
+\vspace{-0.50cm}
+
+{\color{wine}\ttfamily\scriptsize\RaggedRight\sloppy
+\begin{multicols}{3}
+Write a neutral encyclopedia-style article in plain text using only the supplied passages.\par
+Use only supported facts from the passages. Do not invent details.\par
+If a detail is uncertain, conflicting, or weakly supported, leave it out.\par
+Do not mention passages, retrieval, scores, evidence, or source metadata.\par
+Do not write commentary, advice, analysis notes, a Q\&A answer, or a summary about the evidence.\par
+Do not address the reader.\par
+Do not write like a review, recommendation, or box-office report.\par
+Do not output tables, lists, charts, headings, markdown, or code fences.\par
+Write continuous prose paragraphs only.\par
+Prefer broad coverage of the most important facts over over-expanding one aspect.\par
+Avoid repeating the same fact in different wording.\par
+Higher relevance passages matter more than lower relevance passages.\par
+Use lower-scoring passages only for extra detail, not to override stronger evidence.\par
+If supported by the passages, cover subject, background, production or development, release, reception, and performance.\par
+If an aspect is not supported, omit it.\par
+This article has \textit{\color{black}\{bundle.available\_passage\_count\}} indexed passages in total.\par
+The prompt contains \textit{\color{black}\{len(passages)\}} selected passages.\par
+Aim for about \textit{\color{black}\{target\_words\}} words and about \textit{\color{black}\{target\_paragraphs\}} paragraphs.\par
+The title must be exactly the target title.\par
+The first line must be exactly: TITLE: <article title>\par
+Then a blank line.\par
+Then a line that is exactly: ARTICLE:\par
+Then the article body in plain prose paragraphs.\par
+\small\textbf{If you cannot follow this exact format, output nothing.}
+\end{multicols}
+}
+\end{frame}
+%--- Slide 3 ---
 \begin{frame}[t]{Conclusion \& Future Work}
 \vspace{-0.10cm}
 \hspace*{-0.025\textwidth}%
