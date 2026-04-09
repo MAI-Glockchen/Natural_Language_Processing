@@ -29,24 +29,24 @@ services:
   # automatically. You dont need a new Dockerfile.    #
   #####################################################
 
-  embedding_pipeline:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: embedding-pipeline
-    restart: "no"
-    entrypoint: [ "python", "-m", "embedding_pipeline.topic_vector_db_runner" ]
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      - DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-wiki}
-      - TOPIC_PIPELINE_LIMIT=${TOPIC_PIPELINE_LIMIT:-10}
-      - TOPIC_PIPELINE_PERSIST_DB=${TOPIC_PIPELINE_PERSIST_DB:-1}
-      - TOPIC_PIPELINE_OUTPUT_DIR=${TOPIC_PIPELINE_OUTPUT_DIR:-vector_indices}
-      - TOPIC_PIPELINE_WORKERS=${TOPIC_PIPELINE_WORKERS:-1}
-    volumes:
-      - ./vector_indices:/app/vector_indices
+  # embedding_pipeline:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: embedding-pipeline
+  #   restart: "no"
+  #   entrypoint: [ "python", "-m", "embedding_pipeline.topic_vector_db_runner" ]
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   environment:
+  #     - DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-wiki}
+  #     - TOPIC_PIPELINE_LIMIT=${TOPIC_PIPELINE_LIMIT:-10}
+  #     - TOPIC_PIPELINE_PERSIST_DB=${TOPIC_PIPELINE_PERSIST_DB:-1}
+  #     - TOPIC_PIPELINE_OUTPUT_DIR=${TOPIC_PIPELINE_OUTPUT_DIR:-vector_indices}
+  #     - TOPIC_PIPELINE_WORKERS=${TOPIC_PIPELINE_WORKERS:-1}
+  #   volumes:
+  #     - ./vector_indices:/app/vector_indices
 
 # main_01:
 #   build:
