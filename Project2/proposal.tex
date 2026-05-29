@@ -1,0 +1,85 @@
+% NLP MAI SS2026 – Project Proposal
+% Compile (recommended):
+%   pdflatex proposal.tex
+% or
+%   latexmk -pdf proposal.tex
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[a4paper,margin=2.2cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue}
+
+\title{\vspace{-1.0cm}
+\textbf{Project Proposal (NLP MAI SS2026)}\\
+\vspace{0.2cm}
+\textbf{``Who Hunts Who?'' Comparing Three Wikipedia-based Knowledge Graph Construction Methods for Predator--Prey Relations}
+\vspace{-0.2cm}}
+\author{Group Members: \; Zoltan Bek,  Armin Lohse, Nino Reil, Andreas Wallnöfer}
+
+\begin{document}
+\maketitle
+\vspace{-0.4cm}
+
+\section*{1. Motivation \& Problem Definition}
+Knowledge graphs (KGs) represent real-world \textit{entities} and their \textit{relationships} as a graph. In practice, building a KG from text is not unique: different construction methods can yield different edges and graph structures, even on the same corpus. This project uses a small and intuitive domain---\textbf{predator--prey relations in animals}---to compare three KG construction approaches on Wikipedia data and assess which approach best captures the directed relation \textbf{predator $\rightarrow$ prey}.
+
+\section*{2. Task}
+We build and evaluate a small knowledge graph where:
+\begin{itemize}[leftmargin=*,nosep]
+  \item Nodes represent animal entities.
+  \item Directed edges represent candidate predator--prey relations (\textit{``A eats/hunts B''}).
+\end{itemize}
+All work is delivered as a \textbf{single Jupyter notebook} (no additional project structure required).
+
+\section*{3. Research Question}
+\textbf{How do three different knowledge graph construction methods differ in accuracy (Precision/Recall/F1) when extracting predator$\rightarrow$prey relations from Wikipedia, and what are their runtime/graph-structure trade-offs?}
+
+\section*{4. Dataset (small, $\sim$20 pages)}
+We use a controlled Wikipedia corpus of approximately \textbf{20 general animal pages} chosen to form a terrestrial food web where multi-step chains are possible (e.g., \textit{A eats B, B eats C}).
+
+\textbf{Predators / higher trophic:} Hawk, Eagle, Owl, Fox, Wolf, Snake \\
+\textbf{Mid-level (predator + prey):} Frog, Lizard, Spider, Bird, Shrew, Bat \\
+\textbf{Lower trophic / common prey:} Mouse, Rabbit, Squirrel, Grasshopper, Cricket, Caterpillar, Fly, Beetle
+
+This selection supports chain examples such as \textit{Hawk $\rightarrow$ Snake $\rightarrow$ Frog $\rightarrow$ Grasshopper}. We start with general pages for simplicity and breadth; during implementation we may refine selected nodes to \textbf{specific species pages} to obtain clearer diet statements for gold-standard labeling.
+
+\section*{5. Methods (3 KG Construction Approaches)}
+We construct three graphs from the same dataset; each produces a set of directed candidate edges predator$\rightarrow$prey.
+
+\begin{itemize}[leftmargin=*,itemsep=0.25em]
+  \item \textbf{Method A: Co-occurrence KG (baseline).} Add an edge if a predator and prey are mentioned within the same sentence (optionally paragraph). Expected: high coverage, more noise.
+  \item \textbf{Method B: Dependency-based relation KG (syntax).} Use dependency parsing and relation patterns (e.g., \textit{``hunts''}, \textit{``preys on''}, \textit{``feeds on''}, including passive forms) to extract explicit predator$\rightarrow$prey edges. Expected: cleaner edges, but may miss relations.
+  \item \textbf{Method C: Wikilinks KG (Wikipedia link structure).} Create edges based on Wikipedia internal links between pages (predator page links to prey page). Expected: captures association; not always literal predation.
+\end{itemize}
+
+\section*{6. Gold Standard}
+To compute Recall and F1, we create a small gold standard of predator$\rightarrow$prey facts, manually extracted from explicit Wikipedia sentences and stored with citations (page URL + sentence snippet). This keeps evaluation reproducible while remaining lightweight.
+
+\section*{7. Evaluation Plan \& Metrics}
+For each method, we extract a set of candidate edges and compare them to the gold standard using metrics like Precision, Recall and F1.
+
+To ensure fair comparison, we evaluate only edges where the source is in the predator list and the target is in the prey list.
+
+We also report supporting statistics:
+\begin{itemize}[leftmargin=*,nosep]
+  \item Runtime per method (seconds) on the same dataset
+  \item Number of candidate edges produced per method
+  \item Basic descriptive graph properties (e.g., density, average degree)
+\end{itemize}
+
+\section*{8. Deliverable}
+A single notebook (\texttt{.ipynb}) containing:
+\begin{itemize}[leftmargin=*,nosep]
+  \item Wikipedia data collection for the selected pages
+  \item Implementation of Methods A/B/C
+  \item Gold-standard dataset
+  \item Precision/Recall/F1 evaluation and summary tables/plots
+\end{itemize}
+
+\end{document}
