@@ -1,0 +1,9 @@
+wikipedia-api
+spacy
+networkx
+pandas
+matplotlib
+seaborn
+ipykernel
+jupyter
+nltk
