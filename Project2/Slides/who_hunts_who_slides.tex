@@ -85,8 +85,8 @@
 \newcommand{\threepanel}[2]{\column{0.305\textwidth}\panelbox{#1}{#2}}
 
 \title{Who Hunts Who?}
-\subtitle{Comparing Four Knowledge Graph Construction Methods\\for Predator–Prey Relations}
-\author{[Author Names]}
+\subtitle{Comparing 4 Knowledge Graph Construction Methods\\for Predator–Prey Relations}
+\author{Bek Zoltan, Lohse Armin, Reil Nino Joshua, Wallnöfer Andreas}
 \institute{Natural Language Processing}
 \date{June 2026}
 
@@ -171,10 +171,6 @@
       Only edges within valid trophic directions are considered.
     }
   \end{threepanelrow}
-  \note{
-    Walk through the pipeline once before diving into the methods.
-    Emphasise that the evaluation is held constant across all methods.
-  }
 \end{frame}
 
 % ─── GOLD STANDARD ───────────────────────────────────────────────────────────
@@ -184,8 +180,8 @@
     \twopanel{Construction rules}{
       \small
       \begin{itemize}
-        \item Manually verified from Wikipedia text and biological knowledge.
-        \item Only directed edges: predator $\to$ prey.
+        \item Manually constructed from Wikipedia text.
+        \item Directed edges: predator $\to$ prey.
         \item Trophic constraints enforced:
           \begin{itemize}
             \item top predators may target mid-level \emph{and} prey.
@@ -199,31 +195,8 @@
       \includegraphics[width=0.98\linewidth]{slides_assets/gold_standard_food_web.png}
     }
   \end{twopanelrow}
-  \source{Gold standard constructed manually; animals selected from \texttt{who\_hunts\_who.ipynb} corpus.}
-  \note{
-    Briefly explain why the gold standard matters: it is the only fair way to
-    compare methods that were designed with different precision--recall trade-offs
-    in mind.
-  }
 \end{frame}
 
-\begin{frame}{Method A vs Gold Standard}
-  \begin{columns}[T,totalwidth=\textwidth]
-    \column{0.49\textwidth}
-      \centering
-      \textbf{Gold standard}\\[0.3em]
-      \includegraphics[width=\linewidth]{slides_assets/gold_standard_food_web.png}
-    \column{0.49\textwidth}
-      \centering
-      \textbf{Method A}\\[0.3em]
-      \includegraphics[width=\linewidth]{slides_assets/method_A_food_web.png}
-  \end{columns}
-  \vspace{0.4em}
-  \begin{center}
-    \small
-    \textbf{Scores:} Precision $= 0.556$, Recall $= 0.278$, F1 $= 0.370$ \quad (TP $= 10$, FP $= 8$, FN $= 26$)
-  \end{center}
-\end{frame}
 
 % ─── METHOD A ────────────────────────────────────────────────────────────────
 
@@ -238,9 +211,9 @@
       \end{enumerate}
       \vspace{0.4em}
       \textbf{Example sentence:}\\
-      \textit{``Hawks and foxes both compete for rabbits in open fields.''}\\[0.3em]
-      $\Rightarrow$ adds Hawk$\to$Rabbit \emph{and} Fox$\to$Rabbit,\\
-      \phantom{$\Rightarrow$ }even though the sentence is about \emph{competition}.
+      \textit{``Foxes and rabbits both live in the forest.''}\\[0.3em]
+      $\Rightarrow$ adds Fox$\to$Rabbit \\
+      \phantom{$\Rightarrow$ }even though the sentence is about their \emph{habitat}.
     }
     \twopanel{Design trade-offs}{
       \small
@@ -266,7 +239,10 @@
   }
 \end{frame}
 
-\begin{frame}{Method B vs Gold Standard}
+
+
+
+\begin{frame}{Method A vs Gold Standard}
   \begin{columns}[T,totalwidth=\textwidth]
     \column{0.49\textwidth}
       \centering
@@ -274,13 +250,13 @@
       \includegraphics[width=\linewidth]{slides_assets/gold_standard_food_web.png}
     \column{0.49\textwidth}
       \centering
-      \textbf{Method B}\\[0.3em]
-      \includegraphics[width=\linewidth]{slides_assets/method_B_food_web.png}
+      \textbf{Method A}\\[0.3em]
+      \includegraphics[width=\linewidth]{slides_assets/method_A_food_web.png}
   \end{columns}
   \vspace{0.4em}
   \begin{center}
     \small
-    \textbf{Scores:} Precision $= 0.625$, Recall $= 0.139$, F1 $= 0.227$ \quad (TP $= 5$, FP $= 3$, FN $= 31$)
+    \textbf{Scores:} Precision $= 0.556$, Recall $= 0.278$, F1 $= 0.370$ \quad (TP $= 10$, FP $= 8$, FN $= 26$)
   \end{center}
 \end{frame}
 
@@ -292,14 +268,14 @@
       \small
       \begin{enumerate}
         \item For each sentence containing the source animal, extract a window around both animals.
-        \item Require at least one \alert{predation verb or phrase} inside that window:\\
-              \emph{eats, feeds on, preys on, hunts, consumes, kills, devours,} \ldots
+        \item Requires at least one \alert{predation verb or phrase} inside that window:\\
+            
         \item \alert{Infer direction:}
           \begin{itemize}
             \item Active: ``Fox \emph{hunts} Rabbit'' $\to$ Fox$\to$Rabbit.
-            \item Passive: ``Rabbit \emph{is hunted by} Fox'' $\to$ Fox$\to$Rabbit.
+            \item Passive: ``Rabbit \emph{is hunted by} Fox'' \\  Fox$\to$Rabbit.
           \end{itemize}
-        \item Per-source trophic constraints filter implausible edges.
+          \item \alert{Category expansion fallback}: ``eats insects'', expands to ``eats fly``
       \end{enumerate}
     }
     \twopanel{Design trade-offs}{
@@ -329,7 +305,7 @@
   }
 \end{frame}
 
-\begin{frame}{Method C vs Gold Standard}
+\begin{frame}{Method B vs Gold Standard}
   \begin{columns}[T,totalwidth=\textwidth]
     \column{0.49\textwidth}
       \centering
@@ -337,15 +313,17 @@
       \includegraphics[width=\linewidth]{slides_assets/gold_standard_food_web.png}
     \column{0.49\textwidth}
       \centering
-      \textbf{Method C}\\[0.3em]
-      \includegraphics[width=\linewidth]{slides_assets/method_C_food_web.png}
+      \textbf{Method B}\\[0.3em]
+      \includegraphics[width=\linewidth]{slides_assets/method_B_food_web.png}
   \end{columns}
   \vspace{0.4em}
   \begin{center}
     \small
-    \textbf{Scores:} Precision $= 0.677$, Recall $= 0.583$, F1 $= 0.627$ \quad (TP $= 21$, FP $= 10$, FN $= 15$)
+    \textbf{Scores:} Precision $= 0.625$, Recall $= 0.139$, F1 $= 0.227$ \quad (TP $= 5$, FP $= 3$, FN $= 31$)
   \end{center}
 \end{frame}
+
+
 
 % ─── METHOD C ────────────────────────────────────────────────────────────────
 
@@ -361,8 +339,7 @@
           \item Build regex from the full predation phrase + keyword vocabulary.
           \item Search for \texttt{[source] \ldots [rel] \ldots [target]} up to 180 characters apart.
           \item Handle passive: \texttt{[target] \ldots is eaten by \ldots [source]}.
-          \item \alert{Noisy-context filter}: skip sentences with \emph{``such as'', ``food chain'', ``including'',} etc.\ unless a strong phrase is also present.
-          \item \alert{Category expansion fallback}: if no explicit target is found but a sentence says ``eats insects'', expand to all insects in the corpus.
+          \item \alert{Category expansion fallback}: ``eats insects'', expands to ``eats fly``
         \end{enumerate}
       \end{block}
     \column{0.40\textwidth}
@@ -387,6 +364,87 @@
   }
 \end{frame}
 
+
+\begin{frame}{Method C vs Gold Standard}
+  \begin{columns}[T,totalwidth=\textwidth]
+    \column{0.49\textwidth}
+      \centering
+      \textbf{Gold standard}\\[0.3em]
+      \includegraphics[width=\linewidth]{slides_assets/gold_standard_food_web.png}
+    \column{0.49\textwidth}
+      \centering
+      \textbf{Method C}\\[0.3em]
+      \includegraphics[width=\linewidth]{slides_assets/method_C_food_web.png}
+  \end{columns}
+  \vspace{0.4em}
+  \begin{center}
+    \small
+    \textbf{Scores:} Precision $= 0.677$, Recall $= 0.583$, F1 $= 0.627$ \quad (TP $= 21$, FP $= 10$, FN $= 15$)
+  \end{center}
+\end{frame}
+
+
+\begin{frame}{Method D --- Hybrid Extraction (Pipeline)}
+\begin{columns}[T,totalwidth=\textwidth]
+
+\column{0.95\textwidth}
+\small
+\textbf{Step 1 --- Explicit verb proximity}
+\begin{itemize}
+  \item Tokenise sentence and detect predation verbs
+  \item Compute token distance between verb and target animal mention
+  \item Add edge if distance $\leq 8$ tokens
+  \item Handles lexical variants (mouse/mice, fly/flies)
+  \item Supports passive constructions (e.g. ``is eaten by'')
+\end{itemize}
+
+\vspace{0.5em}
+
+\textbf{Step 2 --- Restricted category expansion}
+\begin{itemize}
+  \item Triggered only if Step 1 finds no edge
+  \item Expands only insect-related prey
+  \item Applied only to insectivore sources:
+  Salamander, Lizard, Spider, Bat
+\end{itemize}
+
+
+\end{columns}
+\end{frame}
+
+\begin{frame}{Method D --- Strengths \& Limitations}
+\begin{columns}[T,totalwidth=\textwidth]
+
+\column{0.5\textwidth}
+\textbf{Strengths}
+\begin{itemize}
+  \item Strong precision via token-distance constraint
+  \item Reduces co-occurrence noise from Method A
+  \item Handles passive constructions reliably
+  \item Explicit morphological matching improves recall stability
+  \item Controlled fallback avoids OpenIE over-generation
+\end{itemize}
+
+\column{0.5\textwidth}
+\textbf{Limitations}
+\begin{itemize}
+  \item Strict $\leq 8$ token window misses long dependencies
+  \item Mammal prey depends entirely on Step 1
+  \item Category expansion limited (insects only)
+  \item Still sensitive to sentence structure variation
+  \item Cannot resolve cross-sentence relations
+\end{itemize}
+
+\end{columns}
+
+\vspace{0.6em}
+\centering
+\textbf{Overall:} best trade-off between precision and recall among all methods
+
+\end{frame}
+
+
+
 \begin{frame}{Method D vs Gold Standard}
   \begin{columns}[T,totalwidth=\textwidth]
     \column{0.49\textwidth}
@@ -405,56 +463,6 @@
   \end{center}
 \end{frame}
 
-% ─── METHOD D ────────────────────────────────────────────────────────────────
-
-\begin{frame}{Method D --- Hybrid Extraction}
-  \begin{columns}[T,totalwidth=\textwidth]
-    \column{0.56\textwidth}
-      \small
-      \textbf{Two-step pipeline per sentence:}
-      \vspace{0.3em}
-      \begin{block}{Step 1 --- Explicit verb proximity}
-        \begin{itemize}
-          \item Tokenise sentence; find strong predation verbs:\\
-                \emph{eats, feeds on, preys on, hunts, consumes, devours}.
-          \item For each target animal found: compute \alert{token distance} to the nearest verb.
-          \item Add edge only if distance $\leq 8$ tokens.
-          \item Variant matching: mice/mouse, flies/fly, etc.\ handled explicitly.
-        \end{itemize}
-      \end{block}
-      \vspace{0.3em}
-      \begin{block}{Step 2 --- Restricted category expansion}
-        \begin{itemize}
-          \item Triggered only when Step~1 adds nothing.
-          \item Limited to insect prey and known insectivore sources\\
-                (Salamander, Lizard, Spider, Bat).
-        \end{itemize}
-      \end{block}
-    \column{0.40\textwidth}
-      \small
-      \good: token-distance gate (8 tokens) is stricter than Method~B/C windows, reducing false positives.
-
-      \vspace{0.4em}
-      \good: explicit variant matching avoids the plural-form gaps of Method~B.
-
-      \vspace{0.4em}
-      \bad: strict distance may miss relations that span a long noun phrase.
-
-      \vspace{0.4em}
-      \bad: restricted category expansion means mammal prey (Mouse, Rabbit) relies entirely on Step~1 explicit verbs.
-
-      \vspace{0.4em}
-      \good: passive constructions (e.g., ``is eaten by'') are handled in Step~1.
-
-      \vspace{0.4em}
-      \textbf{Expected:} best F1 --- a practical precision--recall balance.
-  \end{columns}
-  \note{
-    Method D is the hybrid contribution of the project. Walk through both steps
-    and explain why limiting category expansion to insectivores avoids the
-    over-generation problem of Method~C.
-  }
-\end{frame}
 
 % ─── DESIGN COMPARISON ───────────────────────────────────────────────────────
 
@@ -531,37 +539,21 @@
 % ─── RESULTS ─────────────────────────────────────────────────────────────────
 
 \begin{frame}{Results}
-  \begin{columns}[T,totalwidth=\textwidth]
-    \column{0.52\textwidth}
       \small
       \begin{center}
-      \begin{tabular}{lrrrrrr}
-        \toprule
-        \textbf{Method} & \textbf{P} & \textbf{R} & \textbf{F1} & \textbf{TP} & \textbf{FP} & \textbf{FN} \\
-        \midrule
-        A --- Co-occ.  & 0.556 & 0.278 & 0.370 & 10 & 8 & 26 \\[2pt]
-        B --- Verb     & 0.625 & 0.139 & 0.227 & 5 & 3 & 31 \\[2pt]
-        C --- OpenIE   & 0.677 & 0.583 & 0.627 & 21 & 10 & 15 \\[2pt]
-        D --- Hybrid   & 0.938 & 0.417 & 0.577 & 15 & 1 & 21 \\
-        \bottomrule
-      \end{tabular}
+        \begin{tabular}{lrrrrrr}
+          \toprule
+          \textbf{Method} & \textbf{P} & \textbf{R} & \textbf{F1} & \textbf{TP} & \textbf{FP} & \textbf{FN} \\
+          \midrule
+          A --- Co-occurrence  & 0.600 & 0.417 & 0.492 & 15 & 10 & 21 \\
+          B --- Dependency Patterns & 0.625 & 0.139 & 0.227 & 5  & 3  & 31 \\
+          C --- OpenIE-style Relation Extraction & 0.604 & 0.806 & 0.690 & 29 & 19 & 7  \\
+          D --- Hybrid   & 0.952 & 0.556 & 0.702 & 20 & 1  & 16 \\
+          \bottomrule
+        \end{tabular}
       \end{center}
-    \column{0.44\textwidth}
-      \begin{block}{What to look for}
-        \small
-        \begin{itemize}
-          \item \alert{High FP}: method is too lenient --- predicts edges not in gold.
-          \item \alert{High FN}: method is too strict --- misses gold edges.
-          \item \alert{F1} balances both; best method maximises it.
-        \end{itemize}
-      \end{block}
-      \vspace{0.4em}
-      \small
-      \textbf{Expected ordering:}\\
-      $\text{Recall}: \text{A} \geq \text{C} \geq \text{D} > \text{B}$\\
-      $\text{Precision}: \text{B} \geq \text{D} \geq \text{C} > \text{A}$\\
-      $\text{F1}: \text{D} \geq \text{C} \geq \text{B} > \text{A}$
-  \end{columns}
+    
+      
   \note{
     If actual numbers are available, fill the table before the presentation.
     Otherwise walk through the expected ordering and explain the reasoning
@@ -570,75 +562,14 @@
 \end{frame}
 
 % ─── ERROR ANALYSIS ──────────────────────────────────────────────────────────
-
 \begin{frame}{Error Analysis}
-  \begin{threepanelrow}
-    \threepanel{Method A --- False Positives}{
-      \small
-      Any co-occurrence becomes an edge:
-      \begin{itemize}
-        \item Taxonomic sentences:\\
-              \emph{``Hawks and eagles are raptors.''}
-        \item Competition sentences:\\
-              \emph{``Foxes compete with wolves for rabbits.''}
-        \item Encyclopedic lists:\\
-              \emph{``Predators include hawks, owls, and foxes.''}
-      \end{itemize}
-    }
-    \threepanel{Method B --- False Negatives}{
-      \small
-      Paraphrased predation is missed:
-      \begin{itemize}
-        \item \emph{``diet consists of\ldots''} not in the verb list.
-        \item Inverted subject:\\\emph{``Grasshoppers are a major food source for lizards.''}
-        \item Plurals (mice, flies) not matched by simple \texttt{str.find}.
-        \item Indirect mention across sentence boundaries.
-      \end{itemize}
-    }
-    \threepanel{Method D --- Residual gaps}{
-      \small
-      Strict token distance is conservative:
-      \begin{itemize}
-        \item Long noun phrases between verb and prey push distance $> 8$.
-        \item Passive constructions are handled in Step~1.
-        \item Category expansion restricted to insects --- mammal prey relies purely on explicit verbs.
-      \end{itemize}
-    }
-  \end{threepanelrow}
-  \note{
-    Walk through one concrete sentence example for each method. Error analysis
-    is often the most insightful part of an NLP evaluation.
-  }
+ why does it fail? Please finish this slide
 \end{frame}
 
 % ─── DISCUSSION ──────────────────────────────────────────────────────────────
 
 \begin{frame}{Discussion}
-  \begin{twopanelrow}
-    \twopanel{What we learned}{
-      \small
-      \begin{itemize}
-        \item \alert{Co-occurrence (A)}: strong recall ceiling, but floods the graph with false edges --- not usable alone.
-        \item \alert{Verb patterns (B)}: requiring a predation cue is \emph{necessary} for acceptable precision, but insufficient for high recall.
-        \item \alert{OpenIE (C)}: category expansion helps when Wikipedia speaks at the category level (``eats insects''), but needs a noise filter.
-        \item \alert{Hybrid (D)}: combining a strict proximity gate with restricted expansion is the most practical balance.
-      \end{itemize}
-    }
-    \twopanel{Future directions}{
-      \small
-      \begin{itemize}
-        \item \textbf{Coreference resolution}: link pronouns and nominals back to the subject.
-        \item \textbf{Cross-page evidence}: if Rabbit's page says ``preyed on by foxes'', use that signal when building Fox's graph.
-        \item \textbf{Pretrained RE models}: REBEL or similar models as a stronger neural baseline.
-        \item \textbf{Larger gold standard}: independent annotation across more animal pairs to reduce gold-standard bias.
-        \item \textbf{Ensemble}: take the intersection of B and C to combine high precision with broad recall.
-      \end{itemize}
-    }
-  \end{twopanelrow}
-  \note{
-    Spend about two minutes here. The cross-page evidence point and the ensemble
-    idea are the most practically interesting follow-ups.
-  }
+Please finish this slide
 \end{frame}
 
 % ─── SUMMARY ─────────────────────────────────────────────────────────────────
@@ -660,17 +591,8 @@
   \end{center}
 
   \vspace{0.6em}
-  \begin{center}
-    \normalsize
-    Building knowledge graphs from free text requires \alert{balancing linguistic signal strength against coverage}.\\[0.4em]
-    No single method dominates on all metrics ---
-    \alert{hybrid approaches} that combine precision-oriented and recall-oriented signals are the most practical.
-  \end{center}
-  \note{
-    Close by restating the central finding in one sentence: hybrid methods win.
-    Leave time for questions.
-  }
+  
 \end{frame}
 
-% ─────────────────────────────────────────────────────────────────────────────
+% ────────────────────────────────────────────────────────────────────────────
 \end{document}
