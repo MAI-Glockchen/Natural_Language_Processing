@@ -682,29 +682,110 @@ Expected recall
 
 % ─── ERROR ANALYSIS ──────────────────────────────────────────────────────────
 \begin{frame}{Error Analysis}
- why does it fail? Please finish this slide
+\small
+
+\begin{itemize}
+  \item \textbf{Method A --- Co-occurrence}
+  \begin{itemize}
+    \item High recall due to saturation strategy
+    \item Very large number of false positives (semantic noise)
+    \item Lacks directional and relational constraints
+  \end{itemize}
+
+  \item \textbf{Method B --- Dependency Patterns}
+  \begin{itemize}
+    \item Very low recall due to strict pattern dependency
+    \item Fails on lexical variation and non-canonical syntax
+    \item High precision but extremely sparse predictions
+  \end{itemize}
+
+  \item \textbf{Method C --- OpenIE-style}
+  \begin{itemize}
+    \item Best recall (0.806) but introduces structural noise
+    \item Errors from overly permissive relation scopes
+    \item Sensitive to ambiguous or generic relation phrases
+  \end{itemize}
+
+  \item \textbf{Method D --- Hybrid}
+  \begin{itemize}
+    \item Strong precision (0.889), low FP rate
+    \item Remaining errors mainly due to:
+    \begin{itemize}
+      \item long-distance dependencies beyond threshold
+      \item missed implicit relations without explicit cue
+    \end{itemize}
+  \end{itemize}
+\end{itemize}
+
 \end{frame}
 
 % ─── DISCUSSION ──────────────────────────────────────────────────────────────
 
 \begin{frame}{Discussion}
-Please finish this slide
+\small
+
+\begin{itemize}
+  \item \textbf{Key finding: trade-off between precision and recall}
+  \begin{itemize}
+    \item Rule-based constraints significantly improve precision
+    \item However, stricter filtering reduces recall
+  \end{itemize}
+
+  \item \textbf{Best overall method: Hybrid (D)}
+  \begin{itemize}
+    \item Achieves best F1 (0.762) across all methods
+    \item Balances explicit linguistic rules with controlled fallback expansion
+    \item Strong reduction in false positives compared to C
+  \end{itemize}
+
+  \item \textbf{Main bottleneck}
+  \begin{itemize}
+    \item Recall limited by proximity thresholds and sentence-level extraction
+    \item Cross-sentence and long-range dependencies remain unhandled
+  \end{itemize}
+
+  \item \textbf{Interpretation}
+  \begin{itemize}
+    \item A: recall-heavy baseline
+    \item B: precision-heavy but brittle system
+    \item C: recall-maximising noisy extractor
+    \item D: controlled balance between both extremes
+  \end{itemize}
+
+\end{itemize}
+
 \end{frame}
 
 % ─── SUMMARY ─────────────────────────────────────────────────────────────────
 
 \begin{frame}{Summary}
   \small
+
+  \begin{itemize}
+    \item \textbf{Conclusion:} Structured rule constraints improve precision, but recall depends on how strictly relational evidence is enforced
+  \end{itemize}
+
   \begin{center}
   \begin{tabular}{clll}
     \toprule
-    & \textbf{Method} & \textbf{Core signal} & \textbf{Best for} \\
+    & \textbf{Method} & \textbf{Core signal} & \textbf{Observed behaviour} \\
     \midrule
-    A & Co-occurrence  & sentence co-occurrence             & maximum recall       \\
-    B & Verb patterns  & predation verb in window           & maximum precision    \\
-    C & OpenIE         & regex triple + category expansion  & balanced recall      \\
-    D & Hybrid         & verb proximity $\leq$ 8 tokens +   & best F1              \\
-      &                & restricted expansion               &                      \\
+    A & Co-occurrence  
+      & sentence co-occurrence  
+      & high recall, low precision (noisy saturation) \\
+
+    B & Verb patterns  
+      & strict predation verb + window constraint  
+      & very low recall, brittle extraction \\
+
+    C & OpenIE-style  
+      & relation patterns + category expansion  
+      & highest recall, moderate noise \\
+
+    D & Hybrid  
+      & verb + dual proximity + restricted fallback  
+      & best F1, strongest precision-recall balance \\
+
     \bottomrule
   \end{tabular}
   \end{center}
