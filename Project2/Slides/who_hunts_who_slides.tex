@@ -329,11 +329,11 @@
 
 \begin{frame}{Method C --- OpenIE-style Relation Extraction}
   \begin{columns}[T,totalwidth=\textwidth]
-    \column{0.56\textwidth}
+    \column{0.52\textwidth}
       \small
       \textbf{Core idea:} extract \texttt{(subject, relation, object)} triples.
 
-      \vspace{0.4em}
+      \vspace{0.025em}
       \begin{block}{Step-by-step}
         \begin{enumerate}
           \item Build regex from the full predation phrase + keyword vocabulary.
@@ -342,21 +342,24 @@
           \item \alert{Category expansion fallback}: ``eats insects'', expands to ``eats fly``
         \end{enumerate}
       \end{block}
-    \column{0.40\textwidth}
-      \small
-      \good: variable-distance regex captures paraphrases missed by Method~B's fixed window.
-
-      \vspace{0.5em}
-      \good: category expansion recovers edges when Wikipedia mentions a category (``insects'') rather than a specific animal.
-
-      \vspace{0.5em}
-      \bad: generous distance windows may allow subject--relation--object triples that are not actually related.
-
-      \vspace{0.5em}
-      \bad: unconstrained category expansion can introduce false positives.
-
       \vspace{0.5em}
       \textbf{Expected:} better recall than B, moderate precision.
+      
+    \column{0.425\textwidth}
+    \small
+      \begin{block}{Design trade-offs}
+      \good: variable-distance regex captures paraphrases missed by Method~B's window.
+
+      \vspace{0.2em}
+      \good: category expansion recovers edges when Wikipedia mentions a category (``insects'').
+
+      \vspace{0.2em}
+      \bad: generous distance windows allows subject- -relation--object triples that are not actually related.
+
+      \vspace{0.2em}
+      \bad: unconstrained category expansion can introduce false positives.
+
+      \end{block}
   \end{columns}
   \note{
     Emphasise the category expansion idea --- it is the main novel step over
