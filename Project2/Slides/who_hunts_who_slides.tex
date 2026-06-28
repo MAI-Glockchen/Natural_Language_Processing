@@ -353,7 +353,7 @@
       \bad: generous distance windows may allow subject--relation--object triples that are not actually related.
 
       \vspace{0.5em}
-      \bad: unconstrained category expansion can introduce false positives for all members of a category.
+      \bad: unconstrained category expansion can introduce false positives.
 
       \vspace{0.5em}
       \textbf{Expected:} better recall than B, moderate precision.
@@ -489,7 +489,7 @@ Method D combines rule-based extraction with constrained fallback expansion:
 
 \column{0.5\textwidth}
 
-\textbf{Strengths}
+\textbf{\good}
 \begin{itemize}
     \item Combines explicit linguistic rules with controlled fallback expansion
     \item Dual proximity constraint (predator + prey) improves precision
@@ -500,7 +500,7 @@ Method D combines rule-based extraction with constrained fallback expansion:
 
 \column{0.5\textwidth}
 
-\textbf{Limitations}
+\textbf{\bad}
 \begin{itemize}
     \item Relies on manually defined predation vocabulary
     \item Token-based distance is only a proxy for syntactic structure
@@ -762,36 +762,27 @@ Expected recall
   \small
 
   \begin{itemize}
-    \item \textbf{Conclusion:} Structured rule constraints improve precision, but recall depends on how strictly relational evidence is enforced
+    \item \textbf{Conclusion:} Combining explicit predation cues with constrained rule-based filtering achieved the best overall extraction performance.
   \end{itemize}
 
   \begin{center}
   \begin{tabular}{clll}
     \toprule
-    & \textbf{Method} & \textbf{Core signal} & \textbf{Observed behaviour} \\
+    & \textbf{Method} & \textbf{Core signal} & \textbf{Main characteristic} \\
     \midrule
-    A & Co-occurrence  
-      & sentence co-occurrence  
-      & high recall, low precision (noisy saturation) \\
-
-    B & Verb patterns  
-      & strict predation verb + window constraint  
-      & very low recall, brittle extraction \\
-
-    C & OpenIE-style  
-      & relation patterns + category expansion  
-      & highest recall, moderate noise \\
-
-    D & Hybrid  
-      & verb + dual proximity + restricted fallback  
-      & best F1, strongest precision-recall balance \\
-
+    A & Co-occurrence  & Sentence co-occurrence          & Highest recall \\
+    B & Verb patterns  & Predation verb patterns         & Explicit linguistic evidence \\
+    C & OpenIE-style   & Relation extraction + expansion & Balanced recall \\
+    D & Hybrid         & Verb proximity + restricted expansion & Highest Precision \& F1 \\
     \bottomrule
   \end{tabular}
   \end{center}
 
   \vspace{0.6em}
-  
+
+  \centering
+  \textbf{Method D achieved the highest Precision (0.889) and F1-score (0.762), while Method A achieved perfect Recall through exhaustive edge generation.}
+
 \end{frame}
 
 % ────────────────────────────────────────────────────────────────────────────
