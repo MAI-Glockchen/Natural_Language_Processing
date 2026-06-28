@@ -256,7 +256,7 @@
   \vspace{0.4em}
   \begin{center}
     \small
-    \textbf{Scores:} Precision $= 0.556$, Recall $= 0.278$, F1 $= 0.370$ \quad (TP $= 10$, FP $= 8$, FN $= 26$)
+    \textbf{Scores:} Precision $= 0.346$, Recall $= 1.000$, F1 $= 0.514$ \quad (TP $= 36$, FP $= 68$, FN $= 0$)
   \end{center}
 \end{frame}
 
@@ -379,67 +379,142 @@
   \vspace{0.4em}
   \begin{center}
     \small
-    \textbf{Scores:} Precision $= 0.677$, Recall $= 0.583$, F1 $= 0.627$ \quad (TP $= 21$, FP $= 10$, FN $= 15$)
+    \textbf{Scores:} Precision $= 0.604$, Recall $= 0.806$, F1 $= 0.690$ \quad (TP $= 29$, FP $= 19$, FN $= 7$)
   \end{center}
 \end{frame}
 
 
-\begin{frame}{Method D --- Hybrid Extraction (Pipeline)}
+
+\begin{frame}{Method D --- Hybrid Extraction (Overview)}
+
+\small
+
+Method D combines rule-based extraction with constrained fallback expansion:
+
+\begin{itemize}
+    \item \textbf{Step 1: Explicit relation extraction}
+    \begin{itemize}
+        \item Predicate-driven extraction using verb cues + proximity constraints
+    \end{itemize}
+
+    \item \textbf{Step 2: Restricted category expansion}
+    \begin{itemize}
+        \item Applied only if Step 1 fails
+        \item Uses insect-based semantic expansion under strict constraints
+    \end{itemize}
+\end{itemize}
+
+\vspace{0.6em}
+
+\textbf{Key idea:} maximize precision first, then recover recall via controlled fallback.
+\end{frame}
+
+\begin{frame}{Method D --- Step 1: Explicit Relation Extraction}
+
+\small
+
+\textbf{Goal:} extract high-precision predator $\rightarrow$ prey edges
+
+\vspace{0.4em}
+
+\textbf{Procedure:}
+
+\begin{itemize}
+    \item Identify predation verbs (eat, hunt, kill, consume, attack, etc.)
+    \item Reject sentences containing negation cues (e.g. not, rarely, never)
+    \item Detect entity mentions with lexical variants (e.g. mouse/mice)
+\end{itemize}
+
+\vspace{0.4em}
+
+\textbf{Edge creation conditions:}
+\begin{itemize}
+    \item Both predator and prey appear in the same sentence
+    \item Both are within a token distance threshold to predation verbs:
+    \begin{itemize}
+        \item predator distance $\leq d_{pred}$
+        \item prey distance $\leq d_{prey}$
+    \end{itemize}
+    \item OR passive construction detected (``X is eaten by Y'')
+\end{itemize}
+
+\vspace{0.4em}
+
+\textbf{Effect:} high precision extraction with strict linguistic constraints
+
+\end{frame}
+
+\begin{frame}{Method D --- Step 2: Restricted Category Expansion}
+
+\small
+
+\textbf{Goal:} recover missed edges from Step 1 under controlled conditions
+
+\vspace{0.4em}
+
+\textbf{Trigger condition:}
+\begin{itemize}
+    \item Only executed if Step 1 does not extract any relation
+    \item Sentence must contain at least one predation cue
+\end{itemize}
+
+\vspace{0.4em}
+
+\textbf{Expansion strategy:}
+\begin{itemize}
+    \item Expand prey candidates using insect taxonomy only
+    \item Apply only to insectivorous source species:
+    \begin{itemize}
+        \item Salamander, Lizard, Spider, Bat, Bird
+    \end{itemize}
+\end{itemize}
+
+\vspace{0.4em}
+
+\textbf{Effect:}
+\begin{itemize}
+    \item Improves recall without significantly increasing false positives
+    \item Acts as a safety-constrained fallback mechanism
+\end{itemize}
+
+\end{frame}
+
+
+
+
+
+\begin{frame}{Method D --- Strengths \& Limitations}
+
 \begin{columns}[T,totalwidth=\textwidth]
 
-\column{0.95\textwidth}
-\small
-\textbf{Step 1 --- Explicit verb proximity}
+\column{0.5\textwidth}
+
+\textbf{Strengths}
 \begin{itemize}
-  \item Tokenise sentence and detect predation verbs
-  \item Compute token distance between verb and target animal mention
-  \item Add edge if distance $\leq 8$ tokens
-  \item Handles lexical variants (mouse/mice, fly/flies)
-  \item Supports passive constructions (e.g. ``is eaten by'')
+    \item Combines explicit linguistic rules with controlled fallback expansion
+    \item Dual proximity constraint (predator + prey) improves precision
+    \item Handles passive constructions (e.g. ``X is eaten by Y'')
+    \item Lexical variant matching improves robustness (mouse/mice, etc.)
+    \item Negation filtering reduces false positive relations
 \end{itemize}
+
+\column{0.5\textwidth}
+
+\textbf{Limitations}
+\begin{itemize}
+    \item Relies on manually defined predation vocabulary
+    \item Token-based distance is only a proxy for syntactic structure
+    \item Category expansion is restricted to insect prey
+    \item Cannot capture cross-sentence relations
+    \item Performance depends on sentence-level parsing quality
+\end{itemize}
+
+\end{columns}
 
 \vspace{0.5em}
 
-\textbf{Step 2 --- Restricted category expansion}
-\begin{itemize}
-  \item Triggered only if Step 1 finds no edge
-  \item Expands only insect-related prey
-  \item Applied only to insectivore sources:
-  Salamander, Lizard, Spider, Bat
-\end{itemize}
-
-
-\end{columns}
-\end{frame}
-
-\begin{frame}{Method D --- Strengths \& Limitations}
-\begin{columns}[T,totalwidth=\textwidth]
-
-\column{0.5\textwidth}
-\textbf{Strengths}
-\begin{itemize}
-  \item Strong precision via token-distance constraint
-  \item Reduces co-occurrence noise from Method A
-  \item Handles passive constructions reliably
-  \item Explicit morphological matching improves recall stability
-  \item Controlled fallback avoids OpenIE over-generation
-\end{itemize}
-
-\column{0.5\textwidth}
-\textbf{Limitations}
-\begin{itemize}
-  \item Strict $\leq 8$ token window misses long dependencies
-  \item Mammal prey depends entirely on Step 1
-  \item Category expansion limited (insects only)
-  \item Still sensitive to sentence structure variation
-  \item Cannot resolve cross-sentence relations
-\end{itemize}
-
-\end{columns}
-
-\vspace{0.6em}
 \centering
-\textbf{Overall:} best trade-off between precision and recall among all methods
+\textbf{Overall:} best-performing hybrid trade-off between precision and recall
 
 \end{frame}
 
@@ -459,7 +534,7 @@
   \vspace{0.4em}
   \begin{center}
     \small
-    \textbf{Scores:} Precision $= 0.938$, Recall $= 0.417$, F1 $= 0.577$ \quad (TP $= 15$, FP $= 1$, FN $= 21$)
+    \textbf{Scores:} Precision $= 0.889$, Recall $= 0.667$, F1 $= 0.762$ \quad (TP $= 24$, FP $= 3$, FN $= 12$)
   \end{center}
 \end{frame}
 
@@ -467,32 +542,76 @@
 % ─── DESIGN COMPARISON ───────────────────────────────────────────────────────
 
 \begin{frame}{Method Design Comparison}
-  \small
-  \begin{center}
-  \begin{tabular}{lcccc}
-    \toprule
-    & \textbf{A} Co-occurrence
-    & \textbf{B} Verb patterns
-    & \textbf{C} OpenIE
-    & \textbf{D} Hybrid \\
-    \midrule
-    Predation verb required  & \textcolor{td3red}{No}   & \textcolor{td3green}{Yes} & \textcolor{td3green}{Yes}             & \textcolor{td3green}{Yes} \\
-    Direction inference      & \textcolor{td3red}{No}   & \textcolor{td3green}{Yes} & \textcolor{td3green}{Yes}             & \textcolor{td3green}{Yes} \\
-    Passive voice handled    & ---                      & \textcolor{td3green}{Yes} & \textcolor{td3green}{Yes}             & \textcolor{td3green}{Yes}   \\
-    Category expansion       & \textcolor{td3red}{None} & \textcolor{td3red}{None}  & \textcolor{td3gold}{Full}             & \textcolor{td3green}{Restricted} \\
-    Proximity constraint     & \textcolor{td3red}{None} & \textcolor{td3gold}{Window} & \textcolor{td3gold}{Char.\ distance} & \textcolor{td3green}{Token $\leq$8} \\
-    Noisy-context filter     & \textcolor{td3red}{No}   & \textcolor{td3red}{No}    & \textcolor{td3green}{Yes}             & \textcolor{td3red}{No}   \\
-    Variant matching         & \textcolor{td3green}{Yes}& \textcolor{td3red}{Partial}& \textcolor{td3green}{Yes}            & \textcolor{td3green}{Yes} \\
-    \midrule
-    Expected precision       & Low       & High          & Medium        & Medium-high \\
-    Expected recall          & High      & Medium        & High          & Medium-high \\
-    \bottomrule
-  \end{tabular}
-  \end{center}
-  \note{
-    Use this table as a summary before showing the numbers. It lets the audience
-    predict the results before revealing them.
-  }
+\small
+\begin{center}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lcccc}
+\toprule
+& \textbf{A} Co-occurrence
+& \textbf{B} Verb patterns
+& \textbf{C} OpenIE
+& \textbf{D} Hybrid \\
+\midrule
+
+Predation verb required  
+& \textcolor{td3red}{No}  
+& \textcolor{td3green}{Yes}  
+& \textcolor{td3green}{Yes}  
+& \textcolor{td3green}{Yes} \\
+
+Direction inference  
+& \textcolor{td3red}{No}  
+& \textcolor{td3green}{Yes}  
+& \textcolor{td3green}{Yes}  
+& \textcolor{td3green}{Yes} \\
+
+Passive voice handled  
+& ---  
+& \textcolor{td3green}{Yes}  
+& \textcolor{td3green}{Yes}  
+& \textcolor{td3green}{Yes} \\
+
+Category expansion  
+& \textcolor{td3red}{None}  
+& \textcolor{td3red}{None}  
+& \textcolor{td3gold}{Full}  
+& \textcolor{td3green}{Restricted} \\
+
+Proximity constraint  
+& \textcolor{td3red}{None}  
+& \textcolor{td3gold}{Window}  
+& \textcolor{td3gold}{Char.\ distance}  
+& \textcolor{td3green}{Dual token distance} \\
+
+Noisy-context filter  
+& \textcolor{td3red}{No}  
+& \textcolor{td3red}{No}  
+& \textcolor{td3green}{Yes}  
+& \textcolor{td3green}{Yes} \\
+
+Variant matching  
+& \textcolor{td3green}{Yes}  
+& \textcolor{td3red}{Partial}  
+& \textcolor{td3green}{Yes}  
+& \textcolor{td3green}{Yes} \\
+
+\midrule
+Expected precision  
+& Low  
+& High  
+& Medium  
+& High \\
+
+Expected recall  
+& High  
+& Medium  
+& High  
+& Medium-high \\
+
+\bottomrule
+\end{tabular}
+}
+\end{center}
 \end{frame}
 
 % ─── EVALUATION SETUP ────────────────────────────────────────────────────────
@@ -503,8 +622,8 @@
       Let $\hat{E}$ be the set of predicted edges and $E^{*}$ the gold standard.
       \[
         \text{Precision} = \frac{|\hat{E} \cap E^{*}|}{|\hat{E}|}
-        \qquad
-        \text{Recall} = \frac{|\hat{E} \cap E^{*}|}{|E^{*}|}
+        %\qquad
+        \text{ Recall} = \frac{|\hat{E} \cap E^{*}|}{|E^{*}|}
       \]
       \[
         F_1 = \frac{2 \cdot P \cdot R}{P + R}
@@ -545,10 +664,10 @@
           \toprule
           \textbf{Method} & \textbf{P} & \textbf{R} & \textbf{F1} & \textbf{TP} & \textbf{FP} & \textbf{FN} \\
           \midrule
-          A --- Co-occurrence  & 0.600 & 0.417 & 0.492 & 15 & 10 & 21 \\
+          A --- Co-occurrence  & 0.346 & 0.100 & 0.514 & 36 & 68 & 0 \\
           B --- Dependency Patterns & 0.625 & 0.139 & 0.227 & 5  & 3  & 31 \\
           C --- OpenIE-style Relation Extraction & 0.604 & 0.806 & 0.690 & 29 & 19 & 7  \\
-          D --- Hybrid   & 0.952 & 0.556 & 0.702 & 20 & 1  & 16 \\
+          D --- Hybrid   & 0.889 & 0.667 & 0.762 & 24 & 3  & 12 \\
           \bottomrule
         \end{tabular}
       \end{center}
